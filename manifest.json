@@ -1,0 +1,13 @@
+{
+  "name": "Hide Ad by Yeees",
+  "version": "1.0",
+  "manifest_version": 3,
+  "description": "Hide Advertising Chrome Extension",
+  "content_scripts": [{
+    "matches": [ "http://*/*", "https://*/*" ],
+    "js": [
+      "main.js"
+    ]
+  }],
+  "homepage_url": "https://www.yeees.in"
+}
