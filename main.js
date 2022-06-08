@@ -1,24 +1,53 @@
 let styleTag = document.createElement("style");
-document.head.appendChild( styleTag );
+document.head.appendChild(styleTag);
 
 let setVal =
-    [
-        'div [id^="ssp_ydn_"] {display : none !important}',
-        '.ytp-ad-text-overlay {display : none !important}',
-        '.ytp-ad-image-overlay {display : none !important}',
-        'div#TBP {display : none !important}',
-        'div [id^="yads"] {display : none !important}',
-        'div [id^="ssp_ydn"] {display : none !important}',
-        '.adsbygoogle {display : none !important}',
-        'div [id^="google_ads_"] {display : none !important}',
-        'div [id^="player-ads"] {display : none !important}',
-        'div [id^="sparkles-container"] {display : none !important}',
-        'div [id^="ob-dynamic"] {display : none !important}',
-        'a [class^="_popIn_recommend_article_ad"] {display : none !important}',
-        'div [id^="STREAMAD"] {display : none !important}',
-        '.ats-overlay-bottom-wrapper-rendered {display: none !important}',
-        'div [class^="yads_ad_pc_feed"] {display: none !important}',
-        'div [data-testid="placementTracking"] {display: none !important}'
-        ]
+    ".ytp-ad-text-overlay," +
+    ".ytp-ad-image-overlay," +
+    "div#TBP," +
+    "div [id^=\"yads\"]," +
+    "div [id^=\"ssp_ydn\"]," +
+    ".adsbygoogle," +
+    "div [id^=\"google_ads_\"]," +
+    "div [id^=\"player-ads\"]," +
+    "div [id^=\"sparkles-container\"]," +
+    "div [id^=\"ob-dynamic\"]," +
+    "a [class^=\"_popIn_recommend_article_ad\"]," +
+    "div [id^=\"STREAMAD\"]," +
+    ".ats-overlay-bottom-wrapper-rendered," +
+    "div [class^=\"yads_ad_pc_feed\"] {" +
+    " display: none !important;" +
+    "}"
 
-setVal.forEach((item,index) => styleTag.sheet.insertRule ( item, index ));
+styleTag.sheet.insertRule(setVal, 0);
+
+
+let observer = new MutationObserver(() => {
+    /** DOMの変化が起こった時の処理 */
+    console.log('DOMが変化しました');
+    console.log(ytp_ad_skip_button_container);
+})
+
+/** 監視時のオプション */
+const config = {
+    attributes: true,
+    childList: true,
+    characterData: true
+};
+
+
+let ytp_ad_skip_button_container = document.getElementsByClassName('ytp-ad-skip-button-container');
+
+console.log('ytp_ad_skip_button_container');
+console.log(ytp_ad_skip_button_container);
+
+
+/** 要素の変化監視をスタート */
+if (ytp_ad_skip_button_container.length > 0) {
+    observer.observe(ytp_ad_skip_button_container[0], config);
+}
+
+// if (ytp_ad_skip_button.length > 0 ) {
+//         ytp_ad_skip_button[0].button.click();
+// }
+
