@@ -1,13 +1,28 @@
 {
   "name": "hideAd_chrome_yeees",
-  "version": "1.0",
-  "manifest_version": 3,
+  "version": "0.1",
+  "manifest_version": 2,
   "description": "Hide Advertising Chrome Extension",
-  "content_scripts": [{
-    "matches": [ "http://*/*", "https://*/*" ],
-    "js": [
-      "main.js"
-    ]
-  }],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "youtube.js"
+      ],
+      "css": [
+        "adHide.css"
+      ]
+    },
+    {
+      "matches": [
+        "https://www.yahoo.co.jp/*"
+      ],
+      "css": [
+        "adHide.css"
+      ]
+    }
+  ],
   "homepage_url": "https://www.yeees.in"
 }
