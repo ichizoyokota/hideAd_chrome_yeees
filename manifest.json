@@ -19,6 +19,9 @@
       "matches": [
         "https://www.yahoo.co.jp/*"
       ],
+      "js": [
+        "youtube.js"
+      ],
       "css": [
         "adHide.css"
       ]

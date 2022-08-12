@@ -11,7 +11,10 @@ div [id^="ob-dynamic"],
 a [class^="_popIn_recommend_article_ad"],
 div [id^="STREAMAD"],
 .ats-overlay-bottom-wrapper-rendered,
-div [class^="yads_ad_pc_feed"]
+div [class^="yads_ad_pc_feed"],
+div [id^="GDN"],
+div [id^="pos-lrec"],
+div [id^="ad-new-ysp"]
 {
     display: none !important;
 }
