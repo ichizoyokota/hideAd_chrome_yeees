@@ -1,6 +1,6 @@
 {
   "name": "hideAd_chrome_yeees",
-  "version": "0.2",
+  "version": "0.4",
   "manifest_version": 3,
   "description": "Hide Advertising Chrome Extension",
   "content_scripts": [
@@ -17,7 +17,8 @@
     },
     {
       "matches": [
-        "https://www.yahoo.co.jp/*"
+        "https://www.yahoo.co.jp/*",
+        "https://news.yahoo.co.jp/*"
       ],
       "js": [
         "youtube.js"

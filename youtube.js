@@ -6,27 +6,13 @@ let observer = new MutationObserver((mutations) => {
                 tmp[0].click();
             }
         }
-
-        console.log("mutationRecord.target['body'].childNodes[3].childNodes[1]");
-        console.log(mutationRecord.target)
-
-
     })
-    console.log('mutations');
-    console.log(mutations);
 });
 
-let yimg = document.querySelectorAll('div');
-
-console.log('yimg');
-console.log(yimg);
-
-
+// let yimg = document.querySelectorAll('div');
 // 'background: url("https://im.c.yimg.jp'
 
-
 let target = document.getElementsByTagName('body');
-
 
 if (target.length > 0) {
     observer.observe(target[0], {
