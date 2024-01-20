@@ -9,7 +9,7 @@
         "https://*/*"
       ],
       "js": [
-        "adHide.js"
+        "youtube.js"
       ],
       "css": [
         "adHide.css"
