@@ -3,8 +3,8 @@ let observer1 = new MutationObserver((m) => {
         if (r.target.className === "ytp-ad-skip-button-container ytp-ad-skip-button-container-detached") {
             let tmp = document.getElementsByClassName("ytp-ad-skip-button-container ytp-ad-skip-button-container-detached");
             if (tmp.length > 0) {
-                console.log(tmp[0])
-                location.reload()
+                // console.log(tmp[0])
+                tmp[0].click();
             }
         }
     })
