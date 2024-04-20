@@ -1,6 +1,6 @@
 {
   "name": "hideAd_chrome_yeees",
-  "version": "0.7",
+  "version": "0.8",
   "manifest_version": 3,
   "description": "Hide Advertising Chrome Extension",
   "content_scripts": [
