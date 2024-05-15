@@ -20,6 +20,17 @@ let observer2 = new MutationObserver((m) => {
         }
     })
 });
+let observer3 = new MutationObserver((m) => {
+    m.forEach((r) => {
+        if (r.target.className === "ytp-skip-ad-button ytp-ad-component--clickable") {
+            let tmp = document.getElementsByClassName("ytp-skip-ad-button ytp-ad-component--clickable");
+            if (tmp.length > 0) {
+                // console.log(tmp[0])
+                tmp[0].click();
+            }
+        }
+    })
+});
 
 
 let target = document.getElementsByTagName('body');
@@ -32,6 +43,12 @@ if (target[0] !== undefined) {
         attributeFilter: ['style', 'className']
     });
     observer2.observe(target[0], {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'className']
+    });
+    observer3.observe(target[0], {
         childList: true,
         subtree: true,
         attributes: true,
