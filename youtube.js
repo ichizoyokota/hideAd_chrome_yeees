@@ -1,37 +1,22 @@
 let observer1 = new MutationObserver((m) => {
-    m.forEach((r) => {
-        if (r.target.className === "ytp-ad-skip-button-container ytp-ad-skip-button-container-detached") {
-            let tmp = document.getElementsByClassName("ytp-ad-skip-button-container ytp-ad-skip-button-container-detached");
-            if (tmp.length > 0) {
-                // console.log(tmp[0])
-                tmp[0].click();
+    let current_time_span = document.getElementsByClassName("ytp-time-current");
+    let current_time= current_time_span[0].innerText
+    let back_url = localStorage.getItem('yeees_callback_url')
+    if (back_url) {
+        localStorage.removeItem('yeees_callback_url')
+        location.href = back_url
+    } else {
+        m.forEach((r) => {
+            if (r.target.className === "ytp-skip-ad-button") {
+                let tmp = document.getElementsByClassName("ytp-skip-ad-button");
+                if (tmp.length > 0) {
+                    localStorage.setItem('yeees_callback_url', location.href + '?t=' + current_time);
+                    location.href = "https://www.youtube.com/shorts"
+                }
             }
-        }
-    })
+        })
+    }
 });
-let observer2 = new MutationObserver((m) => {
-    m.forEach((r) => {
-        if (r.target.className === "ytp-skip-ad-button") {
-            let tmp = document.getElementsByClassName("ytp-skip-ad-button");
-            if (tmp.length > 0) {
-                // console.log(tmp[0])
-                tmp[0].click();
-            }
-        }
-    })
-});
-let observer3 = new MutationObserver((m) => {
-    m.forEach((r) => {
-        if (r.target.className === "ytp-skip-ad-button ytp-ad-component--clickable") {
-            let tmp = document.getElementsByClassName("ytp-skip-ad-button ytp-ad-component--clickable");
-            if (tmp.length > 0) {
-                // console.log(tmp[0])
-                tmp[0].click();
-            }
-        }
-    })
-});
-
 
 let target = document.getElementsByTagName('body');
 
@@ -42,17 +27,4 @@ if (target[0] !== undefined) {
         attributes: true,
         attributeFilter: ['style', 'className']
     });
-    observer2.observe(target[0], {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'className']
-    });
-    observer3.observe(target[0], {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'className']
-    });
 }
-
