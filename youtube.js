@@ -1,11 +1,13 @@
 let observer1 = new MutationObserver((m) => {
     let current_time_span = document.getElementsByClassName("ytp-time-current");
+    let duration_span = document.getElementsByClassName("ytp-time-duration");
     let current_time= current_time_span[0].innerText
+    let duration= current_time_span[0].innerText
     let back_url = localStorage.getItem('yeees_callback_url')
-    if (back_url) {
+    if (back_url && duration_span !== duration) {
         localStorage.removeItem('yeees_callback_url')
         location.href = back_url
-    } else {
+    } else if (duration_span !== duration) {
         m.forEach((r) => {
             if (r.target.className === "ytp-skip-ad-button") {
                 let tmp = document.getElementsByClassName("ytp-skip-ad-button");
