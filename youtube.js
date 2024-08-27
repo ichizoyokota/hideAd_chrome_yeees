@@ -1,23 +1,28 @@
 let observer1 = new MutationObserver((m) => {
-    let current_time_span = document.getElementsByClassName("ytp-time-current");
     let duration_span = document.getElementsByClassName("ytp-time-duration");
-    let current_time= current_time_span[0].innerText
-    let duration= current_time_span[0].innerText
-    let back_url = localStorage.getItem('yeees_callback_url')
-    if (back_url && duration_span !== duration) {
+    let duration = duration_span[0] ? duration_span[0].innerText : undefined;
+    let current_time_span = document.getElementsByClassName("ytp-time-current");
+    let current_time = current_time_span[0] ? current_time_span[0].innerText : undefined;
+    let back_url = localStorage.getItem('yeees_callback_url');
+    let yeees_callback_return_flag = localStorage.getItem('yeees_callback_return_flag');
+    localStorage.setItem('yeees_callback_url', location.href + '?t=' + current_time);
+
+    if (back_url !== null && yeees_callback_return_flag === 'true') {
+        localStorage.setItem('yeees_callback_return_flag', 'false');
         localStorage.removeItem('yeees_callback_url')
         location.href = back_url
-    } else if (duration_span !== duration) {
-        m.forEach((r) => {
-            if (r.target.className === "ytp-skip-ad-button") {
-                let tmp = document.getElementsByClassName("ytp-skip-ad-button");
-                if (tmp.length > 0) {
-                    localStorage.setItem('yeees_callback_url', location.href + '?t=' + current_time);
-                    location.href = "https://www.youtube.com/shorts"
-                }
-            }
-        })
     }
+
+    m.forEach((r) => {
+        if (r.target.className === "ytp-skip-ad-button") {
+            let tmp = document.getElementsByClassName("ytp-skip-ad-button");
+            if (tmp.length > 0) {
+                localStorage.setItem('yeees_callback_return_flag', 'true');
+                location.href = "https://www.youtube.com/shorts"
+            }
+        }
+    })
+
 });
 
 let target = document.getElementsByTagName('body');
