@@ -1,28 +1,31 @@
-let observer1 = new MutationObserver((m) => {
-    let duration_span = document.getElementsByClassName("ytp-time-duration");
-    let duration = duration_span[0] ? duration_span[0].innerText : undefined;
-    let current_time_span = document.getElementsByClassName("ytp-time-current");
-    let current_time = current_time_span[0] ? current_time_span[0].innerText : undefined;
-    let back_url = localStorage.getItem('yeees_callback_url');
-    let yeees_callback_return_flag = localStorage.getItem('yeees_callback_return_flag');
-    localStorage.setItem('yeees_callback_url', location.href + '?t=' + current_time);
+localStorage.setItem('back_url_1', location.href);
+if (!localStorage.getItem('back_url_1'))  {
+    localStorage.setItem('back_url_2', location.href);
+}
 
-    if (back_url !== null && yeees_callback_return_flag === 'true') {
-        localStorage.setItem('yeees_callback_return_flag', 'false');
-        localStorage.removeItem('yeees_callback_url')
-        location.href = back_url
+let observer1 = new MutationObserver((m) => {
+
+    if (localStorage.getItem('yeees_callback_return_flag') === 'true'
+        && location.href === "https://www.youtube.com/shorts"
+        && localStorage.getItem('back_url_2') !== "https://www.youtube.com/shorts") {
+        localStorage.setItem('yeees_callback_return_flag', 'false')
+        history.back()
     }
 
     m.forEach((r) => {
         if (r.target.className === "ytp-skip-ad-button") {
+            localStorage.setItem('back_url_2', localStorage.getItem('back_url_1'));
+            localStorage.setItem('back_url_1', location.href);
             let tmp = document.getElementsByClassName("ytp-skip-ad-button");
             if (tmp.length > 0) {
                 localStorage.setItem('yeees_callback_return_flag', 'true');
-                location.href = "https://www.youtube.com/shorts"
+                if (localStorage.getItem('back_url_2') !== 'https://www.youtube.com/'
+                    || localStorage.getItem('back_url_2') !== 'https://www.youtube.com/shorts') {
+                    location.href = "https://www.youtube.com/shorts"
+                }
             }
         }
     })
-
 });
 
 let target = document.getElementsByTagName('body');
