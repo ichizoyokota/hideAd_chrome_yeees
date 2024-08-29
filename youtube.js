@@ -3,7 +3,6 @@ if (location.href === 'https://www.youtube.com'
     localStorage.setItem('back_url_1', location.href);
 }
 
-
 let observer1 = new MutationObserver(() => {
 
     let back_url_1 = localStorage.getItem('back_url_1')
@@ -13,7 +12,7 @@ let observer1 = new MutationObserver(() => {
         && location.href.includes('https://www.youtube.com/shorts')
         && !back_url_2.includes('https://www.youtube.com/shorts')) {
         localStorage.setItem('yeees_callback_return_flag', 'false')
-        history.back()
+        location.assign(back_url_1)
     }
 
     let tmp = document.getElementsByClassName('ytp-skip-ad');
@@ -23,8 +22,8 @@ let observer1 = new MutationObserver(() => {
             localStorage.setItem('back_url_1', location.href);
             localStorage.setItem('back_url_2', back_url_1);
         }
-        localStorage.setItem('yeees_callback_return_flag', 'true');
-        location.href = 'https://www.youtube.com/shorts'
+        localStorage.setItem('yeees_callback_return_flag', 'true')
+        location.assign('https://www.youtube.com/shorts')
     }
 });
 
