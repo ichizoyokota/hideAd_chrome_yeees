@@ -1,9 +1,11 @@
+'use strict';
+
 if (location.href === 'https://www.youtube.com'
     && !location.href.includes('https://www.youtube.com/shorts')) {
     localStorage.setItem('back_url_1', location.href);
 }
 
-let observer1 = new MutationObserver(() => {
+let observer1 = new MutationObserver((m) => {
 
     let back_url_1 = localStorage.getItem('back_url_1')
     let back_url_2 = localStorage.getItem('back_url_2')
@@ -16,15 +18,16 @@ let observer1 = new MutationObserver(() => {
     }
 
     let tmp = document.getElementsByClassName('ytp-skip-ad');
-    if (tmp.length > 0) {
-        if (location.href !== 'https://www.youtube.com'
-            && !location.href.includes('https://www.youtube.com/shorts')) {
-            localStorage.setItem('back_url_1', location.href);
-            localStorage.setItem('back_url_2', back_url_1);
+
+        if (tmp.length > 0) {
+            if (location.href !== 'https://www.youtube.com'
+                && !location.href.includes('https://www.youtube.com/shorts')) {
+                localStorage.setItem('back_url_1', location.href);
+                localStorage.setItem('back_url_2', back_url_1);
+            }
+            localStorage.setItem('yeees_callback_return_flag', 'true')
+            location.assign('https://www.youtube.com/shorts')
         }
-        localStorage.setItem('yeees_callback_return_flag', 'true')
-        location.assign('https://www.youtube.com/shorts')
-    }
 });
 
 let target = document.getElementsByTagName('body');
