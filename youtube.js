@@ -1,5 +1,3 @@
-'use strict';
-
 if (location.href === 'https://www.youtube.com'
     && !location.href.includes('https://www.youtube.com/shorts')) {
     localStorage.setItem('back_url_1', location.href);
@@ -17,7 +15,7 @@ let observer1 = new MutationObserver((m) => {
         location.assign(back_url_1)
     }
 
-    let tmp = document.getElementsByClassName('ytp-skip-ad');
+    let tmp = document.querySelectorAll('.ytp-skip-ad');
 
         if (tmp.length > 0) {
             if (location.href !== 'https://www.youtube.com'
