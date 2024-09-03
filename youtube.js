@@ -4,8 +4,7 @@ let observer1 = new MutationObserver((m) => {
     let back_url_2 = localStorage.getItem('back_url_2')
 
     if (localStorage.getItem('yeees_callback_return_flag') === 'true'
-        && back_url_2.includes('https://www.youtube.com/watch?v=')
-        ) {
+        && back_url_2.includes('https://www.youtube.com/watch?v=')) {
         localStorage.setItem('yeees_callback_return_flag', 'false')
         location.assign(back_url_2)
     }
