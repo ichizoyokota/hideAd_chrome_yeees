@@ -9,23 +9,24 @@ let observer1 = new MutationObserver((m) => {
     let back_url_2 = localStorage.getItem('back_url_2')
 
     if (localStorage.getItem('yeees_callback_return_flag') === 'true'
-        && location.href.includes('https://www.youtube.com/shorts')
-        && !back_url_2.includes('https://www.youtube.com/shorts')) {
+        && (!location.href.includes('https://www.youtube.com/@')
+                || location.href.includes('https://www.youtube.com/shorts')
+                || !back_url_2.includes('https://www.youtube.com/shorts'))
+        ) {
         localStorage.setItem('yeees_callback_return_flag', 'false')
-        location.assign(back_url_1)
+        location.assign(back_url_2)
     }
 
-    let tmp = document.querySelectorAll('.ytp-skip-ad');
-
-        if (tmp.length > 0) {
-            if (location.href !== 'https://www.youtube.com'
-                && !location.href.includes('https://www.youtube.com/shorts')) {
-                localStorage.setItem('back_url_1', location.href);
-                localStorage.setItem('back_url_2', back_url_1);
-            }
-            localStorage.setItem('yeees_callback_return_flag', 'true')
-            location.assign('https://www.youtube.com/shorts')
+    if (document.querySelectorAll('.ytp-skip-ad-button').length > 0) {
+        if (location.href !== 'https://www.youtube.com'
+            && !location.href.includes('https://www.youtube.com/@')
+            && !location.href.includes('https://www.youtube.com/shorts')) {
+            localStorage.setItem('back_url_1', location.href);
+            localStorage.setItem('back_url_2', back_url_1);
         }
+        localStorage.setItem('yeees_callback_return_flag', 'true')
+        location.assign('https://www.youtube.com/shorts')
+    }
 });
 
 let target = document.getElementsByTagName('body');
