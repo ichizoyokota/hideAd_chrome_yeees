@@ -6,7 +6,7 @@ let video_id_old = ''
 let tmp_duration = ''
 let tmp_current = ''
 
-
+let back_url = 'https://www.youtube.com/watch?v=';
 
 setInterval(() => {
     time_slider++
@@ -30,18 +30,14 @@ let observer1 = new MutationObserver((m) => {
         }
     }
 
-    let back_url = 'https://www.youtube.com/watch?v=';
-
     if (document.querySelectorAll('.ytp-skip-ad').length > 0) {
-        if (time_duration !== time_slider || tmp_duration !== tmp_current) {
-            setTimeout(() => {
-                if (time_slider > 2) {
-                    location.replace(back_url + video_id_now_ob + '&t=' + time_slider + 's')
-                } else {
-                    location.replace(back_url + video_id_now_ob)
-                }
-            }, 500)
-        }
+        setTimeout(() => {
+            if (time_duration === time_slider) {
+                location.replace(back_url + video_id_now_ob + '&t=' + (time_slider - 2) + 's')
+            } else if (time_duration > time_slider) {
+                location.replace(back_url + video_id_now_ob + '&t=' + time_slider + 's')
+            }
+        }, 500)
     }
 
     if (document.querySelectorAll('.ytp-time-duration').length > 0) {

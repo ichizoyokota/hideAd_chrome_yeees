@@ -1,8 +1,8 @@
 {
-  "name": "hideAd_chrome_yeees",
-  "version": "0.9.3.6",
+  "name": "ytp_do_skip",
+  "version": "0.2.1",
   "manifest_version": 3,
-  "description": "Hide Advertising Chrome Extension",
+  "description": "do skip cm at Youtube for Chrome",
   "content_scripts": [
     {
       "matches": [
