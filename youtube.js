@@ -21,19 +21,19 @@ let observer1 = new MutationObserver((m) => {
         video_id_now_ob = params_ob.get("v");
         if (video_id_old !== video_id_now_ob) {
             video_id_old = video_id_now_ob
-            time_slider = 0
+            // time_slider = 0
         }
-        if (params_ob.get("t")) {
-            if (time_slider < Number(params_ob.get("t").replace('s', '')) - 5) {
-                time_slider = Number(params_ob.get("t").replace('s', '')) - 5;
-            }
-        }
+    }
+
+    if (params_ob.get("t")) {
+        time_slider = Number(params_ob.get("t").replace('s', ''));
     }
 
     if (document.querySelectorAll('.ytp-skip-ad').length > 0) {
         setTimeout(() => {
+            // location.replace(back_url + video_id_now_ob + '&t=' + (time_slider - 3) + 's')
             if (time_duration === time_slider) {
-                location.replace(back_url + video_id_now_ob + '&t=' + (time_slider - 2) + 's')
+                location.replace(back_url + video_id_now_ob + '&t=' + (time_slider - 3) + 's')
             } else if (time_duration > time_slider) {
                 location.replace(back_url + video_id_now_ob + '&t=' + time_slider + 's')
             }
