@@ -12,8 +12,24 @@ setInterval(() => {
     time_slider++
 }, 1000);
 
+const worker_cache_clear = async () => {
+    await navigator.serviceWorker.getRegistrations().then((registrations) => {
+        // 登録されているworkerを全て削除する
+        for (let registration of registrations) {
+            registration.unregister().then(r => null);
+        }
+    });
+    await caches.keys().then((keys) => {
+        // キャッシュストレージを全て削除する
+        keys.forEach((cacheName) => {
+            if (cacheName) {
+                caches.delete(cacheName).then(r => null);
+            }
+        });
+    });
+}
 
-const observer1 = new MutationObserver((m) => {
+const observer1 = new MutationObserver(async (m) => {
 
     let params_ob = new URL(document.location).searchParams;
 
@@ -23,14 +39,15 @@ const observer1 = new MutationObserver((m) => {
             time_slider = Number(params_ob.get("t").replace('s', ''));
         }
 
-        if (document.querySelectorAll('.ytp-skip-ad').length > 0) {
-            setTimeout(() => {
+        if (document.querySelectorAll('.ytp-skip-ad').length > 0
+            || document.querySelectorAll('.ytp-preview-ad').length > 0) {
+            await worker_cache_clear().then(() => {
                 if (time_duration === time_slider) {
-                    location.replace(back_url + video_id_now_ob + '&t=' + (time_slider - 5) + 's')
+                    location.replace(back_url + video_id_now_ob + '&t=' + (time_slider - 1) + 's')
                 } else if (time_duration > time_slider) {
                     location.replace(back_url + video_id_now_ob + '&t=' + (time_slider + 1) + 's')
                 }
-            }, 500)
+            })
         }
 
         if (document.querySelectorAll('.ytp-time-duration').length > 0) {
