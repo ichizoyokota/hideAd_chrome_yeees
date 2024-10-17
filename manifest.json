@@ -1,6 +1,6 @@
 {
   "name": "ytp_do_skip",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "manifest_version": 3,
   "description": "do skip cm at Youtube for Chrome",
   "content_scripts": [

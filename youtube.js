@@ -26,54 +26,53 @@ const worker_cache_clear = async () => {
     });
 }
 
-const observer1 = new MutationObserver( async (m) => {
+const observer1 = new MutationObserver(() => {
 
-    let params_ob = new URL(document.location).searchParams;
+    let params_obj = new URL(document.location).searchParams;
 
-    if (params_ob.get("v")) {
-        video_id_now_ob = params_ob.get("v");
-        if (params_ob.get("t")) {
-            time_slider = Number(params_ob.get("t").replace('s', ''));
+    if (params_obj.get("v")) {
+        video_id_now_ob = params_obj.get("v");
+        if (params_obj.get("t")) {
+            time_slider = Number(params_obj.get("t").replace('s', ''));
         }
 
         if (document.querySelectorAll('.ytp-skip-ad').length > 0
-            && document.querySelectorAll('.ytp-preview-ad').length > 0) {
-            await worker_cache_clear().then(() => {
-                if (time_duration > time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider-1) + 's')
+            || document.querySelectorAll('.ytp-preview-ad').length > 0) {
+            worker_cache_clear().then(() => {
+                if (time_duration >= time_slider) {
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's')
                 } else {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration-1) + 's')
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's')
                 }
             })
-        } else {
-            if (document.querySelectorAll('.ytp-time-duration').length > 0) {
-                tmp_duration = document.querySelectorAll('.ytp-time-duration')[0].innerText
-                let duration_obj = tmp_duration.split(':')
-                switch (duration_obj.length) {
-                    case 2:
-                        time_duration = (Number(duration_obj[0]) * 60) + Number(duration_obj[1])
-                        break;
-                    case 3:
-                        time_duration = (Number(duration_obj[0]) * 60 * 60) + (Number(duration_obj[1]) * 60) + Number(duration_obj[2])
-                        break;
-                }
-            }
+        }
 
-            if (document.querySelectorAll('.ytp-time-current').length > 0) {
-                tmp_current = document.querySelectorAll('.ytp-time-current')[0].innerText
-                let current_obj = tmp_current.split(':')
-                switch (current_obj.length) {
-                    case 2:
-                        time_slider = (Number(current_obj[0]) * 60) + Number(current_obj[1])
-                        break;
-                    case 3:
-                        time_slider = (Number(current_obj[0]) * 60 * 60) + (Number(current_obj[1]) * 60) + Number(current_obj[2])
-                        break;
-                }
+        if (document.querySelectorAll('.ytp-time-duration').length > 0) {
+            tmp_duration = document.querySelectorAll('.ytp-time-duration')[0].innerText
+            let duration_obj = tmp_duration.split(':')
+            switch (duration_obj.length) {
+                case 2:
+                    time_duration = (Number(duration_obj[0]) * 60) + Number(duration_obj[1])
+                    break;
+                case 3:
+                    time_duration = (Number(duration_obj[0]) * 60 * 60) + (Number(duration_obj[1]) * 60) + Number(duration_obj[2])
+                    break;
+            }
+        }
+
+        if (document.querySelectorAll('.ytp-time-current').length > 0) {
+            tmp_current = document.querySelectorAll('.ytp-time-current')[0].innerText
+            let current_obj = tmp_current.split(':')
+            switch (current_obj.length) {
+                case 2:
+                    time_slider = (Number(current_obj[0]) * 60) + Number(current_obj[1])
+                    break;
+                case 3:
+                    time_slider = (Number(current_obj[0]) * 60 * 60) + (Number(current_obj[1]) * 60) + Number(current_obj[2])
+                    break;
             }
         }
     }
-
 });
 
 observer1.observe(document.getElementsByTagName('body')[0], {
