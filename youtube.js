@@ -36,18 +36,8 @@ const observer1 = new MutationObserver(() => {
             time_slider = Number(params_obj.get("t").replace('s', ''));
         }
 
-        if (document.querySelectorAll('.ytp-skip-ad').length > 0
-            || document.querySelectorAll('.ytp-preview-ad').length > 0) {
-            worker_cache_clear().then(() => {
-                if (time_duration >= time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's')
-                } else {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's')
-                }
-            })
-        }
-
-        if (document.querySelectorAll('.ytp-time-duration').length > 0) {
+        if (document.querySelectorAll('.ytp-skip-ad').length === 0
+            && document.querySelectorAll('.ytp-preview-ad').length ===0 ) {
             tmp_duration = document.querySelectorAll('.ytp-time-duration')[0].innerText
             let duration_obj = tmp_duration.split(':')
             switch (duration_obj.length) {
@@ -58,9 +48,7 @@ const observer1 = new MutationObserver(() => {
                     time_duration = (Number(duration_obj[0]) * 60 * 60) + (Number(duration_obj[1]) * 60) + Number(duration_obj[2])
                     break;
             }
-        }
 
-        if (document.querySelectorAll('.ytp-time-current').length > 0) {
             tmp_current = document.querySelectorAll('.ytp-time-current')[0].innerText
             let current_obj = tmp_current.split(':')
             switch (current_obj.length) {
@@ -71,6 +59,15 @@ const observer1 = new MutationObserver(() => {
                     time_slider = (Number(current_obj[0]) * 60 * 60) + (Number(current_obj[1]) * 60) + Number(current_obj[2])
                     break;
             }
+
+        } else {
+            worker_cache_clear().then(() => {
+                if (time_duration >= time_slider) {
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's')
+                } else if(time_duration !== time_slider) {
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's')
+                }
+            })
         }
     }
 });
