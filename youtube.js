@@ -37,7 +37,7 @@ const observer1 = new MutationObserver(() => {
         }
 
         if (document.querySelectorAll('.ytp-skip-ad').length === 0
-            && document.querySelectorAll('.ytp-preview-ad').length ===0 ) {
+            && document.querySelectorAll('.ytp-preview-ad').length === 0 ) {
             tmp_duration = document.querySelectorAll('.ytp-time-duration')[0].innerText
             let duration_obj = tmp_duration.split(':')
             switch (duration_obj.length) {
@@ -62,10 +62,14 @@ const observer1 = new MutationObserver(() => {
 
         } else {
             worker_cache_clear().then(() => {
-                if (time_duration >= time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's')
-                } else if(time_duration !== time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's')
+                try {
+                    if (time_duration > time_slider) {
+                        location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's')
+                    } else if(time_duration <= time_slider) {
+                        location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's')
+                    }
+                } catch (e) {
+                    console.log(e);
                 }
             })
         }
