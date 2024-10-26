@@ -63,10 +63,12 @@ const observer1 = new MutationObserver(() => {
         } else {
             worker_cache_clear().then(() => {
                 try {
-                    if (time_duration > time_slider) {
+                    if (time_duration >= time_slider) {
                         location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's')
-                    } else if(time_duration <= time_slider) {
+                    } else if(time_duration < time_slider) {
                         location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's')
+                    } else {
+                        location.reload()
                     }
                 } catch (e) {
                     console.log(e);
