@@ -1,8 +1,8 @@
-let time_slider = 0
-let time_duration = 0
-let video_id_now_ob = ''
-let tmp_duration = ''
-let tmp_current = ''
+let time_slider = 0;
+let time_duration = 0;
+let video_id_now_ob = '';
+let tmp_duration = '';
+let tmp_current = '';
 const back_url = 'https://youtu.be/';
 
 setInterval(() => {
@@ -24,34 +24,34 @@ const observer1 = new MutationObserver(() => {
             let duration_obj = tmp_duration.split(':')
             switch (duration_obj.length) {
                 case 2:
-                    time_duration = (Number(duration_obj[0]) * 60) + Number(duration_obj[1])
+                    time_duration = (Number(duration_obj[0]) * 60) + Number(duration_obj[1]);
                     break;
                 case 3:
-                    time_duration = (Number(duration_obj[0]) * 60 * 60) + (Number(duration_obj[1]) * 60) + Number(duration_obj[2])
+                    time_duration = (Number(duration_obj[0]) * 60 * 60) + (Number(duration_obj[1]) * 60) + Number(duration_obj[2]);
                     break;
             }
 
-            tmp_current = document.querySelectorAll('.ytp-time-current')[0].innerText
-            let current_obj = tmp_current.split(':')
+            tmp_current = document.querySelectorAll('.ytp-time-current')[0].innerText;
+            let current_obj = tmp_current.split(':');
             switch (current_obj.length) {
                 case 2:
-                    time_slider = (Number(current_obj[0]) * 60) + Number(current_obj[1])
+                    time_slider = (Number(current_obj[0]) * 60) + Number(current_obj[1]);
                     break;
                 case 3:
-                    time_slider = (Number(current_obj[0]) * 60 * 60) + (Number(current_obj[1]) * 60) + Number(current_obj[2])
+                    time_slider = (Number(current_obj[0]) * 60 * 60) + (Number(current_obj[1]) * 60) + Number(current_obj[2]);
                     break;
             }
 
         } else {
             setTimeout(()=> {
                 if (time_duration >= time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's')
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's');
                 } else if (time_duration < time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's')
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's');
                 } else {
-                    location.reload()
+                    location.reload();
                 }
-            }, 1000);
+            }, 2000);
         }
     }
 });
