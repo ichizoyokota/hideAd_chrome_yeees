@@ -19,8 +19,7 @@ const observer1 = new MutationObserver(() => {
             time_slider = Number(params_obj.get("t").replace('s', ''));
         }
 
-        if (document.querySelectorAll('.ytp-skip-ad').length === 0
-            && document.querySelectorAll('.ytp-preview-ad').length === 0) {
+        if (document.querySelectorAll('.ytp-ad-player-overlay-layout').length === 0) {
             tmp_duration = document.querySelectorAll('.ytp-time-duration')[0].innerText
             let duration_obj = tmp_duration.split(':')
             switch (duration_obj.length) {

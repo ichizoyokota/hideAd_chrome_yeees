@@ -60,7 +60,8 @@ div[class="section pc-ad-wide is-hidden-touch has-text-centered"],
 div[class^="pc-ad"],
 section[class^="pc-ad"],
 section[class^="section pc-ad"],
-div[id="flbn_amt"]
+div[id="flbn_amt"],
+ytd-ad-slot-renderer
 {
     display: none !important;
 }
