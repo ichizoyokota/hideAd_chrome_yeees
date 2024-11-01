@@ -1,5 +1,5 @@
 ## 広告非表示機能拡張：Chrome機能拡張
-hideAd_chrome_yeees：機能拡張
+ytp_do_skip：機能拡張
 
 ### Auther: Yeees.in
 
@@ -10,6 +10,6 @@ hideAd_chrome_yeees：機能拡張
 * Chromeの環境設定メニューを開きます。
 * Chromeの機能拡張メニューを選択します。
 * Chromeの機能拡張画面に解凍してできたフォルダをドラッグ&ドロップします。 または、パッケージ化されていない機能拡張を読み込みをクリックし、解凍してできたフォルダを選択します。
-* Hide Ad by Yeees の機能拡張がインストールされます。
+* ytp_do_skip の機能拡張がインストールされます。
 
 
