@@ -1,0 +1,14 @@
+{
+  "Name": {
+    "message": "ytp_do_skip"
+  },
+  "Description": {
+    "message": "Youtubeの広告をスキップボタンをクリックします。バナー広告を非表示にします。"
+  },
+  "MenuON": {
+    "message": "静止広告を表示する"
+  },
+  "MenuOFF": {
+    "message": "静止広告を表示しない"
+  }
+}

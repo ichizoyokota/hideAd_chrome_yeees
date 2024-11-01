@@ -43,11 +43,12 @@ const observer1 = new MutationObserver(() => {
             }
 
         } else {
+            // observer1.disconnect()
             setTimeout(()=> {
-                if (time_duration >= time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider - 1) + 's');
+                if (time_duration > time_slider) {
+                    location.replace(back_url + video_id_now_ob + '?t=' + time_slider + 's');
                 } else if (time_duration < time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 1) + 's');
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration -1) + 's');
                 } else {
                     location.reload();
                 }
@@ -62,3 +63,8 @@ observer1.observe(document.getElementsByTagName('body')[0], {
     attributes: true,
     attributeFilter: ['style', 'className']
 });
+
+
+window.addEventListener("beforeunload", (event) => {
+    localStorage.removeItem('css_off_ytp_do_skip');
+})

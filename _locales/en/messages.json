@@ -1,0 +1,14 @@
+{
+  "Name": {
+    "message": "ytp_do_skip"
+  },
+  "Description": {
+    "message": "Automatically click the YouTube skip button., and Hide advertising banner."
+  },
+  "MenuON": {
+    "message": "Show static advertising"
+  },
+  "MenuOFF": {
+    "message": "Hide static advertising"
+  }
+}

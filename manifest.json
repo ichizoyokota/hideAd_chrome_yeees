@@ -1,19 +1,25 @@
 {
-  "name": "ytp_do_skip",
-  "version": "0.3.3",
+  "name": "__MSG_Name__",
+  "version": "0.4.0",
+  "default_locale": "en",
   "manifest_version": 3,
-  "description": "do skip cm at Youtube for Chrome",
+  "description": "__MSG_Description__",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "scripting"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
-        "https://www.youtube.com/*",
-        "https://*.yahoo.co.jp/*"
+        "https://www.youtube.com/*"
       ],
       "js": [
         "youtube.js"
-      ],
-      "css": [
-        "adHide.css"
       ]
     }
   ],
