@@ -50,7 +50,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
 const css_switch = async () => {
     let css_off_ytp_do_skip = localStorage.getItem('css_off_ytp_do_skip');
-    if (css_off_ytp_do_skip !== null && css_off_ytp_do_skip !== 'on') {
+    if (css_off_ytp_do_skip !== 'on') {
         localStorage.setItem('css_off_ytp_do_skip', 'on')
         chrome.runtime.sendMessage('on')
     } else {
