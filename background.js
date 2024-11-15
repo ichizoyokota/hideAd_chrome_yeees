@@ -26,7 +26,6 @@ const getCurrentTab = async () => {
 
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-
     let [tab] = await getCurrentTab()
     if (tab.url?.startsWith("chrome://") === false) {
         if (String(request) === 'on') {
@@ -48,13 +47,30 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 });
 
 
+
+
 const css_switch = async () => {
-    let css_off_ytp_do_skip = localStorage.getItem('css_off_ytp_do_skip');
-    if (css_off_ytp_do_skip !== 'on') {
-        localStorage.setItem('css_off_ytp_do_skip', 'on')
+
+    let ytp_do_skip = {
+        'video_id': '',
+        'time_slider': 0,
+        'time_duration': 0,
+        'css_off': 'off'
+    }
+
+    let ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
+
+    if (!ytp_do_skip_st) {
+        localStorage.setItem('ytp_do_skip', JSON.stringify(ytp_do_skip));
+        ytp_do_skip_st = ytp_do_skip;
+    }
+    if (ytp_do_skip_st.css_off !== 'on') {
+        let tmp = {...ytp_do_skip_st, 'css_off': 'on'};
+        localStorage.setItem('ytp_do_skip', JSON.stringify(tmp));
         chrome.runtime.sendMessage('on')
     } else {
-        localStorage.setItem('css_off_ytp_do_skip', 'off')
+        let tmp = {...ytp_do_skip_st, 'css_off': 'off'};
+        localStorage.setItem('ytp_do_skip', JSON.stringify(tmp));
         chrome.runtime.sendMessage('off')
     }
 }

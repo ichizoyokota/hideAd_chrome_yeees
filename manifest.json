@@ -1,6 +1,6 @@
 {
   "name": "__MSG_Name__",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "default_locale": "en",
   "manifest_version": 3,
   "description": "__MSG_Description__",
