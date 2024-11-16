@@ -1,7 +1,7 @@
 {
   "name": "__MSG_Name__",
-  "version": "0.4.3",
-  "default_locale": "en",
+  "version": "0.4.4",
+  "default_locale": "ja",
   "manifest_version": 3,
   "description": "__MSG_Description__",
   "permissions": [

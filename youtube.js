@@ -2,10 +2,10 @@ let time_slider = 0;
 let time_duration = 0;
 const back_url = 'https://youtu.be/';
 let ytp_do_skip = {
-    'video_id':'',
+    'video_id': '',
     'time_slider': 0,
-    'time_duration':0,
-    'css_off':'off'
+    'time_duration': 0,
+    'css_off': 'off'
 }
 let video_id_st = '';
 let ytp_do_skip_st = {};
@@ -58,9 +58,9 @@ const observer1 = new MutationObserver(async () => {
         if (document.querySelectorAll('.ytp-ad-player-overlay-layout').length > 0) {
             await worker_cache_clear().then(() => {
                 if (time_duration === time_slider) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration - 3) + 's');
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_duration-3) + 's');
                 } else if (time_duration > time_slider && time_slider > 0) {
-                    location.replace(back_url + video_id_now_ob + '?t=' + time_slider + 's');
+                    location.replace(back_url + video_id_now_ob + '?t=' + (time_slider-1) + 's');
                 } else {
                     location.reload();
                 }
@@ -93,15 +93,13 @@ const observer1 = new MutationObserver(async () => {
                     break;
             }
             let time_slider_st = Number(ytp_do_skip_st.time_slider);
-            if (time_slider_st !== time_slider || time_slider > 0) {
+            if (time_slider_st !== time_slider && time_slider > 30) {
                 tmp = {...ytp_do_skip_st,'time_slider':time_slider};
                 localStorage.setItem('ytp_do_skip', JSON.stringify(tmp));
-            } else {
-                time_slider = time_slider_st;
             }
             let time_duration_st = Number(ytp_do_skip_st.time_duration);
             if (time_duration_st !== time_duration) {
-                tmp = {...ytp_do_skip_st,'time_duration':time_duration};
+                tmp = {...ytp_do_skip_st, 'time_duration': time_duration};
                 localStorage.setItem('ytp_do_skip', JSON.stringify(tmp));
             } else {
                 time_duration = time_duration_st;
@@ -118,7 +116,7 @@ observer1.observe(document.getElementsByTagName('body')[0], {
 });
 
 
-window.addEventListener("load",   () => {
+window.addEventListener("load", () => {
     ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
     if (!ytp_do_skip_st.css_off || ytp_do_skip_st.css_off === 'off') {
         chrome.runtime.sendMessage('off')
