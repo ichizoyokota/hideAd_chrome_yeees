@@ -1,6 +1,6 @@
 {
   "name": "__MSG_Name__",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "default_locale": "ja",
   "manifest_version": 3,
   "description": "__MSG_Description__",
@@ -19,7 +19,9 @@
       ],
       "js": [
         "youtube.js"
-      ]
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "homepage_url": "https://www.yeees.in"

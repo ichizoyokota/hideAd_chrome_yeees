@@ -33,12 +33,12 @@ const worker_cache_clear = async () => {
     });
 }
 
-const observer1 = new MutationObserver(async () => {
+const observer1 = new MutationObserver(async (b) => {
     params_obj = new URL(document.location).searchParams;
     ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
     if (params_obj.get("v")) {
         if (params_obj.get("v") !== ytp_do_skip_st.video_id) {
-            let tmp = {...ytp_do_skip_st, 'video_id': params_obj.get("v"), 'time_slider': 0};
+            tmp = {...ytp_do_skip_st, 'video_id': params_obj.get("v"), 'time_slider': 0};
             localStorage.setItem('ytp_do_skip', JSON.stringify(tmp));
             ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
         }
@@ -48,7 +48,7 @@ const observer1 = new MutationObserver(async () => {
                 if (ytp_do_skip_st.time_duration === ytp_do_skip_st.time_slider && ytp_do_skip_st.time_duration > 3) {
                     location.replace(back_url + ytp_do_skip_st.video_id + '?t=' + (ytp_do_skip_st.time_duration - 3) + 's');
                 } else if (ytp_do_skip_st.time_slider > 3) {
-                    location.replace(back_url + ytp_do_skip_st.video_id + '?t=' + ytp_do_skip_st.time_slider + 's');
+                    location.replace(back_url + ytp_do_skip_st.video_id + '?t=' + (ytp_do_skip_st.time_slider - 1) + 's');
                 } else {
                     location.reload();
                 }
@@ -104,19 +104,7 @@ observer1.observe(document.getElementsByTagName('body')[0], {
 
 
 window.addEventListener("load", () => {
-        let params_obj = new URL(document.location).searchParams;
-        if (!params_obj.get("v")) {
-            localStorage.setItem('ytp_do_skip', JSON.stringify(ytp_do_skip));
-        }
         ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
-        if (ytp_do_skip_st === null) {
-            localStorage.setItem('ytp_do_skip', JSON.stringify(ytp_do_skip));
-            ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
-        }
-        if (!ytp_do_skip_st.css_off || ytp_do_skip_st.css_off === 'off') {
-            chrome.runtime.sendMessage('off')
-        } else {
-            chrome.runtime.sendMessage('on')
-        }
+        chrome.runtime.sendMessage(ytp_do_skip_st.css_off)
     }
 )

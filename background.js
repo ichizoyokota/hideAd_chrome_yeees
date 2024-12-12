@@ -24,10 +24,9 @@ const getCurrentTab = async () => {
     return await chrome.tabs.query(queryOptions);
 }
 
-
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     let [tab] = await getCurrentTab()
-    if (tab.url?.startsWith("chrome://") === false) {
+    if (tab.url !== undefined && tab.url.startsWith("chrome://") === false) {
         if (String(request) === 'on') {
             await chrome.contextMenus.removeAll();
             await updateContextMenus('on');

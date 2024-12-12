@@ -61,7 +61,8 @@ div[class^="pc-ad"],
 section[class^="pc-ad"],
 section[class^="section pc-ad"],
 div[id="flbn_amt"],
-ytd-ad-slot-renderer
+ytd-ad-slot-renderer,
+div[class="relatedLinksPhoto"]
 {
     display: none !important;
 }
