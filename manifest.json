@@ -1,13 +1,19 @@
 {
   "name": "__MSG_Name__",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "default_locale": "ja",
   "manifest_version": 3,
   "description": "__MSG_Description__",
   "permissions": [
     "activeTab",
     "contextMenus",
-    "scripting"
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://*.youtube.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -15,7 +21,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.youtube.com/*"
+        "https://www.youtube.com/*",
+        "https://*.youtube.com/*"
       ],
       "js": [
         "youtube.js"

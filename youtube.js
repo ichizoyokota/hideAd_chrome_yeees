@@ -102,9 +102,3 @@ observer1.observe(document.getElementsByTagName('body')[0], {
     attributeFilter: ['style', 'className']
 });
 
-
-window.addEventListener("load", () => {
-        ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
-        chrome.runtime.sendMessage(ytp_do_skip_st.css_off)
-    }
-)
