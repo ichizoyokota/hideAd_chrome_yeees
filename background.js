@@ -8,15 +8,20 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // コンテキストメニュー初期化用の関数
 const updateContextMenus = async (st) => {
-    // 既存のメニューを削除
-    await chrome.contextMenus.removeAll();
+    if (!(chrome.runtime && chrome.runtime.id)) return;
+    try {
+        // 既存のメニューを削除
+        await chrome.contextMenus.removeAll();
 
-    // 新しいメニューを作成
-    await chrome.contextMenus.create({
-        id: "css_status",
-        title: st === 'on' ? chrome.i18n.getMessage('MenuON') : chrome.i18n.getMessage('MenuOFF'),
-        contexts: ['all'],
-    });
+        // 新しいメニューを作成
+        await chrome.contextMenus.create({
+            id: "css_status",
+            title: st === 'on' ? chrome.i18n.getMessage('MenuON') : chrome.i18n.getMessage('MenuOFF'),
+            contexts: ['all'],
+        });
+    } catch (e) {
+        console.error('Context menu update failed:', e);
+    }
 };
 
 const getCurrentTab = async () => {
@@ -27,20 +32,38 @@ const getCurrentTab = async () => {
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     let [tab] = await getCurrentTab()
     if (tab && tab.url !== undefined && tab.url.startsWith("chrome://") === false) {
-        if (String(request) === 'on') {
+        if (request === 'on') {
             await chrome.contextMenus.removeAll();
             await updateContextMenus('on');
             await chrome.scripting.insertCSS({
                 target: {tabId: tab.id, allFrames: true},
                 files: ['adHide.css'],
             });
-        } else {
+        } else if (request === 'off') {
             await chrome.contextMenus.removeAll();
             await updateContextMenus('off');
             await chrome.scripting.removeCSS({
                 target: {tabId: tab.id, allFrames: true},
                 files: ['adHide.css'],
             });
+        } else if (typeof request === 'object' && request.type === 'SET_WINDOW_FULLSCREEN') {
+            try {
+                const windowId = sender.tab ? sender.tab.windowId : (await chrome.windows.getCurrent()).id;
+                await chrome.windows.update(windowId, { state: request.fullscreen ? 'fullscreen' : 'normal' });
+                console.log('Window fullscreen state updated to:', request.fullscreen);
+            } catch (e) {
+                console.error('Failed to update window state:', e);
+            }
+        } else if (typeof request === 'object' && request.type === 'GET_WINDOW_STATE') {
+            try {
+                const windowId = sender.tab ? sender.tab.windowId : (await chrome.windows.getCurrent()).id;
+                const window = await chrome.windows.get(windowId);
+                sendResponse({ state: window.state });
+            } catch (e) {
+                console.error('Failed to get window state:', e);
+                sendResponse({ state: 'normal' });
+            }
+            return true; // Keep message channel open for async response
         }
     }
 });
@@ -80,15 +103,30 @@ const css_switch = async (tab) => {
 
 const getStorageData = async (key) => {
     return new Promise((resolve) => {
+        if (!(chrome.runtime && chrome.runtime.id)) {
+            resolve(undefined);
+            return;
+        }
         chrome.storage.local.get(key, (result) => {
-            resolve(result[key]);
+            if (chrome.runtime.lastError) {
+                resolve(undefined);
+            } else {
+                resolve(result[key]);
+            }
         });
     });
 };
 
 const setStorageData = async (key, value) => {
     return new Promise((resolve) => {
+        if (!(chrome.runtime && chrome.runtime.id)) {
+            resolve();
+            return;
+        }
         chrome.storage.local.set({[key]: value}, () => {
+            if (chrome.runtime.lastError) {
+                // Ignore error
+            }
             resolve();
         });
     });
