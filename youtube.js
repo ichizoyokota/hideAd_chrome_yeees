@@ -34,16 +34,6 @@ const restoreFullscreen = async () => {
         return;
     }
     
-    // リロード直後はDOM構築が不完全な場合があるため少し待つ
-    // ただし、早すぎるとDOMがなく、遅すぎるとユーザー体験を損なう
-    const waitForPlayer = async () => {
-        for (let i = 0; i < 20; i++) {
-            if (document.querySelector('#movie_player')) return true;
-            await new Promise(r => setTimeout(r, 200));
-        }
-        return false;
-    };
-    
     // 状態監視自体は両方行うが、復元リクエスト（ytp_os_fullscreen_request）は
     // 元が YTPフルスクリーンであっても「リロード時にはOSフルスクリーンとして復帰」するために
     // 保存時に集約する。
