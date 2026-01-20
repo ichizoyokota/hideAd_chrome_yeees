@@ -12,6 +12,30 @@ let tmp = {};
 let params_obj = {};
 let isReloading = false; // リロード中フラグ
 
+// 広告が表示されているか判定する関数
+const isAdShowing = () => {
+    // 1. 標準的な広告オーバーレイ
+    const adOverlay = document.querySelector('.ytp-ad-player-overlay-layout');
+    if (adOverlay && adOverlay.offsetParent !== null) return true;
+
+    // 2. 広告割り込みクラス
+    if (document.querySelector('.ad-interrupting')) return true;
+
+    // 3. 広告モジュール要素
+    const adModule = document.querySelector('.ytp-ad-module');
+    if (adModule && adModule.children.length > 0 && adModule.offsetParent !== null) {
+        // 子要素があり、かつ表示されている場合のみ広告とみなす
+        return true;
+    }
+
+    return false;
+};
+
+// 無限ループ防止のためのリロード可否判定
+const canReload = (videoId, time) => {
+    return true;
+};
+
 // 履歴保持用のキュー（最大5秒分）
 let historyQueue = [];
 try {
@@ -56,22 +80,10 @@ const restoreFullscreen = async () => {
         };
         immediateWindowRestore();
 
-        // 自動試行：OSフルスクリーン（要素レベル）の復元を試みる
-        const immediateRestore = async () => {
-            try {
-                // 自動試行での requestFullscreen はブラウザに拒否される可能性が高いが、
-                // リロード直後かつ前ページのユーザー操作が有効な場合に備えて一応実行
-                if (document.documentElement.requestFullscreen) {
-                    await document.documentElement.requestFullscreen().catch(e => {
-                        console.log('Immediate requestFullscreen failed (expected):', e.message);
-                    });
-                }
-            } catch (e) {
-                // Ignore
-            }
-        };
-        immediateRestore();
-
+        // 自動試行：OSフルスクリーン（要素レベル）の復帰は、リロード直後であっても
+        // ブラウザのセキュリティ制限（ユーザージェスチャ必須）によりほぼ確実に失敗するため、
+        // 明示的な呼び出しは行わない。
+        // （background経由のウィンドウフルスクリーン化は別途実行されている）
         const tryRestore = () => {
             if (tryRestore._isRunning) return false;
             tryRestore._isRunning = true;
@@ -316,7 +328,7 @@ const historyInterval = setInterval(() => {
     const params = new URL(document.location).searchParams;
     const vId = params.get("v");
 
-    if (video && vId && !document.querySelector('.ytp-ad-player-overlay-layout') && !document.querySelector('.ad-interrupting')) {
+    if (video && vId && !isAdShowing()) {
         const currentTime = Math.floor(video.currentTime);
         const duration = Math.floor(video.duration);
 
@@ -347,6 +359,11 @@ const checkEndRestoration = () => {
     const vId = params.get("v");
     const tParam = params.get("t");
 
+    if (isAdShowing()) {
+        console.log('Ad showing during checkEndRestoration. This will be handled by observer1.');
+        return;
+    }
+
     // 再生位置指定がない、または0秒の場合
     if (vId && (!tParam || tParam === '0' || tParam === '0s')) {
         let history = [];
@@ -364,6 +381,11 @@ const checkEndRestoration = () => {
             const video = document.querySelector('video');
             if (video && video.currentTime < 5 && snapshot.t > (snapshot.d - 15)) {
                 if (isReloading) return;
+                
+                // 無限ループチェック
+                if (!canReload(vId, snapshot.t)) {
+                    return;
+                }
                 
                 // すでにこの動画で復元を実行したかチェック
                 const restoredVId = sessionStorage.getItem('ytp_last_end_restored_v');
@@ -418,43 +440,64 @@ const observer1 = new MutationObserver(async (b) => {
             ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
         }
 
-        if (document.querySelectorAll('.ytp-ad-player-overlay-layout').length > 0 || document.querySelector('.ad-interrupting')) {
+        if (isAdShowing()) {
             if (isReloading) return; // すでにリロード中の場合は何もしない
             isReloading = true;
 
-            // リロード前にフルスクリーン状態を保存
-            updateFullscreenStorage().then(async () => {
-                console.log('Saved fullscreen state before ad-reload. Proceeding with cache clear and reload.');
+            // 0.5秒間広告を再生させてからリロード処理に移行する
+            setTimeout(async () => {
+                // 0.5秒後もまだ広告が表示されているか再確認
+                if (!isAdShowing()) {
+                    isReloading = false;
+                    return;
+                }
 
-                await worker_cache_clear().then(() => {
-                    // 広告検知時のリロード
-                    // 履歴がある場合はそれを使う
-                    let history = [];
-                    try {
-                        history = JSON.parse(sessionStorage.getItem('ytp_history_queue') || '[]');
-                    } catch (e) {
-                        console.warn('Failed to parse historyQueue in observer1:', e);
-                    }
-                    const snapshot = history[history.length - 1];
-                    
-                    let targetUrl = '';
-                    if (snapshot && snapshot.v === params_obj.get("v") && snapshot.t >= 0) {
-                        if (snapshot.t >= snapshot.d - 1) {
-                             targetUrl = back_url + snapshot.v + '?t=' + (snapshot.d - 2) + 's';
-                        } else {
-                             targetUrl = back_url + snapshot.v + '?t=' + snapshot.t + 's';
+                console.log('Ad still showing after 0.5s. Proceeding with reload.');
+
+                // リロード前にフルスクリーン状態を保存
+                updateFullscreenStorage().then(async () => {
+                    console.log('Saved fullscreen state before ad-reload. Proceeding with cache clear and reload.');
+
+                    await worker_cache_clear().then(() => {
+                        // 広告検知時のリロード
+                        // 履歴がある場合はそれを使う
+                        let history = [];
+                        try {
+                            history = JSON.parse(sessionStorage.getItem('ytp_history_queue') || '[]');
+                        } catch (e) {
+                            console.warn('Failed to parse historyQueue in observer1:', e);
                         }
-                    }
+                        const snapshot = history[history.length - 1];
+                        
+                        let targetUrl = '';
+                        if (snapshot && snapshot.v === params_obj.get("v") && snapshot.t >= 0) {
+                            if (snapshot.t >= snapshot.d - 1) {
+                                 targetUrl = back_url + snapshot.v + '?t=' + (snapshot.d - 2) + 's';
+                            } else {
+                                 targetUrl = back_url + snapshot.v + '?t=' + snapshot.t + 's';
+                            }
+                        }
 
-                    if (targetUrl) {
-                        console.log('Ad detected. Redirecting to: ' + targetUrl);
-                        location.replace(targetUrl);
-                    } else {
-                        console.log('Ad detected. Reloading...');
-                        location.reload();
-                    }
-                })
-            });
+                        if (targetUrl) {
+                            // 無限ループチェック
+                            if (!canReload(params_obj.get("v"), snapshot.t)) {
+                                isReloading = false;
+                                return;
+                            }
+                            console.log('Ad detected. Redirecting to: ' + targetUrl);
+                            location.replace(targetUrl);
+                        } else {
+                            // 無限ループチェック（snapshotがない場合はt=0相当とする）
+                            if (!canReload(params_obj.get("v"), 0)) {
+                                isReloading = false;
+                                return;
+                            }
+                            console.log('Ad detected. Reloading...');
+                            location.reload();
+                        }
+                    })
+                });
+            }, 500);
         } else {
             // 通常再生時の情報更新
             let tmp_duration = '';
