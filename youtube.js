@@ -329,6 +329,14 @@ const historyInterval = setInterval(() => {
     const vId = params.get("v");
 
     if (video && vId && !isAdShowing()) {
+        // 広告要素が DOM 上に存在しなくても、video 要素のソースが広告である可能性をチェック
+        // YouTube の広告 video は通常、本編とは異なる src を持つが、判定が難しいため
+        // プレーヤーのクラス名なども併用する
+        const player = document.querySelector('#movie_player');
+        const isAdClass = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
+        
+        if (isAdClass) return;
+
         const currentTime = Math.floor(video.currentTime);
         const duration = Math.floor(video.duration);
 
@@ -440,7 +448,13 @@ const observer1 = new MutationObserver(async (b) => {
             ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip'));
         }
 
-        if (isAdShowing()) {
+        const adShowing = isAdShowing();
+        const player = document.querySelector('#movie_player');
+        if (player) {
+            player.style.opacity = adShowing ? '0.1' : '';
+        }
+
+        if (adShowing) {
             if (isReloading) return; // すでにリロード中の場合は何もしない
             isReloading = true;
 
@@ -467,10 +481,14 @@ const observer1 = new MutationObserver(async (b) => {
                         } catch (e) {
                             console.warn('Failed to parse historyQueue in observer1:', e);
                         }
+                        // snapshotが現在の動画IDと一致し、かつ妥当なタイムコードかチェック
                         const snapshot = history[history.length - 1];
                         
                         let targetUrl = '';
                         if (snapshot && snapshot.v === params_obj.get("v") && snapshot.t >= 0) {
+                            // 広告のリロードループを防ぐため、あまりにも短い間隔での更新や
+                            // 異常に小さいタイムコードへの巻き戻りを警戒するロジックも検討可能だが、
+                            // まずは snapshot が確実に本編のものであることを優先する
                             if (snapshot.t >= snapshot.d - 1) {
                                  targetUrl = back_url + snapshot.v + '?t=' + (snapshot.d - 2) + 's';
                             } else {
@@ -545,4 +563,3 @@ observer1.observe(document.getElementsByTagName('body')[0], {
     attributes: true,
     attributeFilter: ['style', 'className']
 });
-
