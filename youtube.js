@@ -20,11 +20,23 @@ const isAdShowing = () => {
 
     // 2. 広告割り込みクラス
     if (document.querySelector('.ad-interrupting')) return true;
+    if (document.querySelector('.ad-showing')) return true;
 
     // 3. 広告モジュール要素
     const adModule = document.querySelector('.ytp-ad-module');
     if (adModule && adModule.children.length > 0 && adModule.offsetParent !== null) {
         // 子要素があり、かつ表示されている場合のみ広告とみなす
+        return true;
+    }
+
+    // 4. 追加の広告関連クラスのチェック
+    const player = document.querySelector('#movie_player');
+    if (player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))) {
+        return true;
+    }
+
+    // 5. 広告ボタンなどの存在確認
+    if (document.querySelector('.ytp-ad-skip-button') || document.querySelector('.ytp-ad-preview-container')) {
         return true;
     }
 
@@ -34,6 +46,28 @@ const isAdShowing = () => {
 // 無限ループ防止のためのリロード可否判定
 const canReload = (videoId, time) => {
     return true;
+};
+
+// 広告回避のリロード時は YouTube 側が保存している再生速度設定をリセットする
+const resetPlaybackRateSettings = () => {
+    try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key) continue;
+            if (key === 'yt-player-playback-rate' || key.startsWith('yt-player-playback-rate-')) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+        const video = document.querySelector('video');
+        if (video) {
+            video.playbackRate = 1;
+        }
+    } catch (e) {
+        console.warn('Failed to reset playback rate settings before ad reload:', e);
+    }
 };
 
 // 履歴保持用のキュー（最大5秒分）
@@ -329,18 +363,32 @@ const historyInterval = setInterval(() => {
     const vId = params.get("v");
 
     if (video && vId && !isAdShowing()) {
-        // 広告要素が DOM 上に存在しなくても、video 要素のソースが広告である可能性をチェック
-        // YouTube の広告 video は通常、本編とは異なる src を持つが、判定が難しいため
-        // プレーヤーのクラス名なども併用する
-        const player = document.querySelector('#movie_player');
-        const isAdClass = player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'));
-        
-        if (isAdClass) return;
-
         const currentTime = Math.floor(video.currentTime);
         const duration = Math.floor(video.duration);
 
         if (duration > 0) {
+            const lastSnapshot = historyQueue[historyQueue.length - 1];
+
+            // 1. 新しい動画の開始直後の「安定化待ち」 (最初の2秒間は保存しない)
+            if (lastSnapshot && lastSnapshot.v !== vId && currentTime < 2) {
+                return;
+            }
+
+            // 2. 広告の可能性を排除するための追加チェック: 
+            // 30秒以下 かつ 動画IDが直前と異なる場合は保存をスキップ
+            if (duration <= 30 && lastSnapshot && lastSnapshot.v !== vId) {
+                console.log('Skipping history update for short video with different ID (likely an ad):', vId, 'duration:', duration);
+                return;
+            }
+
+            // 3. 「巻き戻り」の防止
+            // 同じ動画IDで、前回保存した時間よりも大幅に（10秒以上）戻っている場合は
+            // 広告が再生されている可能性があるため保存をスキップする
+            if (lastSnapshot && lastSnapshot.v === vId && currentTime < (lastSnapshot.t - 10)) {
+                console.log('Significant time rewind detected (likely an ad). Skipping save:', lastSnapshot.t, '->', currentTime);
+                return;
+            }
+
             historyQueue.push({
                 v: vId,
                 t: currentTime,
@@ -382,7 +430,8 @@ const checkEndRestoration = () => {
         }
         
         // snapshotの検索：現在の動画IDと一致し、終端（残り15秒以内）に近い最新のものを探す
-        const snapshot = [...history].reverse().find(s => s.v === vId && s.t > (s.d - 15));
+        // かつ、再生開始直後（0秒付近）ではないものを優先する
+        const snapshot = [...history].reverse().find(s => s.v === vId && s.t > (s.d - 15) && s.t > 5);
 
         if (snapshot && snapshot.v === vId) {
             // 履歴が動画終端付近（終端から15秒以内）かつ、現在の再生位置が0付近の場合
@@ -404,6 +453,7 @@ const checkEndRestoration = () => {
 
                 isReloading = true;
                 console.log('Restoring from end-of-video reload');
+                resetPlaybackRateSettings();
                 // リロード前にフルスクリーン状態を保存
                 updateFullscreenStorage().then(() => {
                     console.log('Saved fullscreen state before end-of-video reload. Reloading now.');
@@ -481,11 +531,13 @@ const observer1 = new MutationObserver(async (b) => {
                         } catch (e) {
                             console.warn('Failed to parse historyQueue in observer1:', e);
                         }
-                        // snapshotが現在の動画IDと一致し、かつ妥当なタイムコードかチェック
-                        const snapshot = history[history.length - 1];
+                        
+                        // 現在の動画IDと一致し、かつ広告ではない可能性が高い（再生時間が進んでいる）最新の履歴を探す
+                        const currentVId = params_obj.get("v");
+                        const snapshot = [...history].reverse().find(s => s.v === currentVId && s.t > 0) || history[history.length - 1];
                         
                         let targetUrl = '';
-                        if (snapshot && snapshot.v === params_obj.get("v") && snapshot.t >= 0) {
+                        if (snapshot && snapshot.v === currentVId && snapshot.t >= 0) {
                             // 広告のリロードループを防ぐため、あまりにも短い間隔での更新や
                             // 異常に小さいタイムコードへの巻き戻りを警戒するロジックも検討可能だが、
                             // まずは snapshot が確実に本編のものであることを優先する
@@ -503,6 +555,7 @@ const observer1 = new MutationObserver(async (b) => {
                                 return;
                             }
                             console.log('Ad detected. Redirecting to: ' + targetUrl);
+                            resetPlaybackRateSettings();
                             location.replace(targetUrl);
                         } else {
                             // 無限ループチェック（snapshotがない場合はt=0相当とする）
@@ -511,6 +564,7 @@ const observer1 = new MutationObserver(async (b) => {
                                 return;
                             }
                             console.log('Ad detected. Reloading...');
+                            resetPlaybackRateSettings();
                             location.reload();
                         }
                     })
