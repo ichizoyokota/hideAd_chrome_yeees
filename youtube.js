@@ -51,23 +51,62 @@ const canReload = (videoId, time) => {
 // 広告回避のリロード時は YouTube 側が保存している再生速度設定をリセットする
 const resetPlaybackRateSettings = () => {
     try {
-        const keysToRemove = [];
+        // localStorage のキーを 1.0 に上書きする。
+        // なお video.playbackRate への直接代入は ratechange イベントを発火させ
+        // YouTube が URL に t パラメータを付与するため行わない。
+        const resetValue = JSON.stringify({ previousRate: 1, currentRate: 1 });
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (!key) continue;
             if (key === 'yt-player-playback-rate' || key.startsWith('yt-player-playback-rate-')) {
-                keysToRemove.push(key);
+                localStorage.setItem(key, resetValue);
             }
         }
-        keysToRemove.forEach((key) => localStorage.removeItem(key));
-
-        const video = document.querySelector('video');
-        if (video) {
-            video.playbackRate = 1;
+        // キーが存在しない場合も書き込んでおく
+        if (!localStorage.getItem('yt-player-playback-rate')) {
+            localStorage.setItem('yt-player-playback-rate', resetValue);
         }
+        // リロード後のページでプレーヤー API による速度強制リセットを行うためフラグを立てる。
+        // youtu.be へのリダイレクト経由で youtube.com に戻るため sessionStorage はオリジンをまたいで
+        // 消滅する。localStorage を使うことで youtube.com に戻った後もフラグを参照できる。
+        localStorage.setItem('ytp_reset_playback_rate', '1');
     } catch (e) {
         console.warn('Failed to reset playback rate settings before ad reload:', e);
     }
+};
+
+// リロード後：localStorage のフラグが立っていればプレーヤー API で速度を強制 1x にする。
+// YouTube の CSP により <script> 注入は不可のため、background 経由で MAIN world で実行する。
+const applyPlaybackRateResetIfNeeded = () => {
+    if (localStorage.getItem('ytp_reset_playback_rate') !== '1') return;
+    if (window.self !== window.top) return;
+
+    localStorage.removeItem('ytp_reset_playback_rate');
+
+    const execEnforce1x = () => {
+        chrome.runtime.sendMessage({ type: 'EXEC_IN_MAIN_WORLD', action: 'setPlaybackRate1' });
+    };
+
+    const deadline = Date.now() + 10000;
+    const onRateChange = () => {
+        if (Date.now() > deadline) {
+            document.removeEventListener('ratechange', onRateChange, true);
+            return;
+        }
+        execEnforce1x();
+    };
+    document.addEventListener('ratechange', onRateChange, true);
+
+    const tryInitialReset = (attempts) => {
+        if (document.querySelector('#movie_player')) {
+            execEnforce1x();
+            return;
+        }
+        if (attempts > 0) setTimeout(() => tryInitialReset(attempts - 1), 500);
+    };
+    tryInitialReset(20);
+
+    setTimeout(() => document.removeEventListener('ratechange', onRateChange, true), 10000);
 };
 
 // 履歴保持用のキュー（最大5秒分）
@@ -114,21 +153,11 @@ const restoreFullscreen = async () => {
         };
         immediateWindowRestore();
 
-        // 自動試行：OSフルスクリーン（要素レベル）の復帰は、リロード直後であっても
-        // ブラウザのセキュリティ制限（ユーザージェスチャ必須）によりほぼ確実に失敗するため、
-        // 明示的な呼び出しは行わない。
-        // （background経由のウィンドウフルスクリーン化は別途実行されている）
         const tryRestore = () => {
             if (tryRestore._isRunning) return false;
             tryRestore._isRunning = true;
             try {
-                // OSレベルのフルスクリーン（ウィンドウ含む）をチェック
                 const isOsFs = !!document.fullscreenElement;
-                
-                // background 側がウィンドウをフルスクリーンにしている可能性もあるため、
-                // 厳密には document.fullscreenElement 以外も考慮したいが、
-                // JS側から取れる確実な復元完了の指標はこれ。
-                
                 if (isOsFs) {
                     console.log('OS Fullscreen state detected.');
                     console.log('Target fullscreen state restored.');
@@ -152,11 +181,7 @@ const restoreFullscreen = async () => {
 
         const oneTimeRestore = async (event) => {
             if (event && event._isYtpDoSkip) return;
-            
-            // 複数のイベントが同時に発生する場合のガード
             if (oneTimeRestore._isProcessing) return;
-            
-            // ユーザー操作イベントの場合に requestFullscreen を試みる
             if (!(event.type === 'pointerdown' || event.type === 'click' || event.type === 'mousedown' || event.type === 'keydown')) {
                 return;
             }
@@ -165,14 +190,12 @@ const restoreFullscreen = async () => {
             oneTimeRestore._isProcessing = true;
 
             try {
-                // ウィンドウ全体のフルスクリーンをまず要求 (OSレベル)
                 if (isOsFullscreenSaved && !document.fullscreenElement) {
                     console.log('Requesting window fullscreen via background script...');
                     chrome.runtime.sendMessage({ type: 'SET_WINDOW_FULLSCREEN', fullscreen: true });
                     await new Promise(r => setTimeout(r, 200));
                 }
 
-                // すでにフルスクリーンなら requestFullscreen は呼ばない
                 if (!document.fullscreenElement) {
                     console.log('Attempting requestFullscreen on documentElement');
                     try {
@@ -180,8 +203,6 @@ const restoreFullscreen = async () => {
                         console.log('OS Fullscreen restored via documentElement');
                     } catch (e) {
                         console.warn('documentElement.requestFullscreen failed:', e.message);
-                        
-                        // フォールバック：プレーヤー要素で試す
                         const player = document.querySelector('#movie_player');
                         if (player && !document.fullscreenElement) {
                             console.log('Attempting requestFullscreen on #movie_player');
@@ -194,11 +215,7 @@ const restoreFullscreen = async () => {
                         }
                     }
                 }
-                
-                // YouTubeプレーヤーレベルのフルスクリーン復元は行わない方針のため、
-                // ボタンクリック処理は削除済み。
 
-                // 状態が確定するのを待つ
                 await new Promise(r => setTimeout(r, 500));
                 if (tryRestore()) {
                     removeListeners();
@@ -235,7 +252,6 @@ const restoreFullscreen = async () => {
         window.addEventListener('click', oneTimeRestore, { capture: true, passive: false });
         window.addEventListener('mousedown', oneTimeRestore, { capture: true, passive: false });
 
-        // YouTubeプレーヤー上でのイベントも確実に拾うために追加
         const setupPlayerListeners = () => {
             const player = document.querySelector('#movie_player');
             if (player) {
@@ -257,7 +273,6 @@ const restoreFullscreen = async () => {
             playerObserver.observe(document.documentElement, { childList: true, subtree: true });
         }
 
-        // 60秒後にリスナーを削除（もっと長く待つ）
         setTimeout(() => {
             console.log('Fullscreen restoration timeout reached.');
             removeListeners();
@@ -267,25 +282,19 @@ const restoreFullscreen = async () => {
     }
 };
 restoreFullscreen();
+applyPlaybackRateResetIfNeeded();
 
 // フルスクリーン状態の監視
 let lastFsUpdateTime = 0;
 const updateFullscreenStorage = () => {
     return new Promise((resolve) => {
         if (!isContextValid()) return resolve();
-        if (window.self !== window.top) return resolve(); // メインウィンドウのみ更新
+        if (window.self !== window.top) return resolve();
         
-        // OSレベルのフルスクリーン状態を判定
-        // document.fullscreenElement に加え、ブラウザウィンドウが最大化（フルスクリーン）されているかも考慮したいが、
-        // JSからは直接ウィンドウ状態を正確に取れないため、backgroundに問い合わせるか、
-        // 少なくとも現在のfullscreenElementの状態は保存する。
         const isOsFullscreen = !!document.fullscreenElement;
         const player = document.querySelector('#movie_player');
         const isYtpFullscreen = player ? player.classList.contains('ytp-fullscreen') : false;
         
-        console.log('Updating fullscreen storage. OS:', isOsFullscreen, 'YTP:', isYtpFullscreen);
-        
-        // Windowの状態も取得して保存するようにする（拡張機能のAPIが必要）
         try {
             chrome.runtime.sendMessage({type: 'GET_WINDOW_STATE'}, (response) => {
                 const isWindowFullscreen = response && response.state === 'fullscreen';
@@ -306,7 +315,6 @@ const updateFullscreenStorage = () => {
             });
         } catch (e) {
             console.error('Failed to send GET_WINDOW_STATE message:', e);
-            // メッセージ送信に失敗した場合でも、取得できている範囲で保存する
             chrome.storage.local.set({
                 'ytp_fullscreen_request': isYtpFullscreen ? 'true' : 'false',
                 'ytp_os_fullscreen_request': isOsFullscreen ? 'true' : 'false'
@@ -326,7 +334,6 @@ const fsInterval = setInterval(() => {
         clearInterval(fsInterval);
         return;
     }
-    // 直近にイベントで更新されたばかりならスキップ（競合防止）
     if (Date.now() - lastFsUpdateTime < 3000) return;
 
     const player = document.querySelector('#movie_player');
@@ -334,7 +341,6 @@ const fsInterval = setInterval(() => {
         const isOsFullscreen = !!document.fullscreenElement;
         const isYtpFullscreen = player.classList.contains('ytp-fullscreen');
         
-        // 保存されている値と異なる場合のみ更新する
         try {
             chrome.storage.local.get(['ytp_fullscreen_request', 'ytp_os_fullscreen_request'], (data) => {
                 if (chrome.runtime.lastError) return;
@@ -377,7 +383,7 @@ const historyInterval = setInterval(() => {
             // 2. 広告の可能性を排除するための追加チェック: 
             // 30秒以下 かつ 動画IDが直前と異なる場合は保存をスキップ
             if (duration <= 30 && lastSnapshot && lastSnapshot.v !== vId) {
-                console.log('Skipping history update for short video with different ID (likely an ad):', vId, 'duration:', duration);
+                // console.log('Skipping history update for short video with different ID (likely an ad):', vId, 'duration:', duration);
                 return;
             }
 
@@ -385,7 +391,7 @@ const historyInterval = setInterval(() => {
             // 同じ動画IDで、前回保存した時間よりも大幅に（10秒以上）戻っている場合は
             // 広告が再生されている可能性があるため保存をスキップする
             if (lastSnapshot && lastSnapshot.v === vId && currentTime < (lastSnapshot.t - 10)) {
-                console.log('Significant time rewind detected (likely an ad). Skipping save:', lastSnapshot.t, '->', currentTime);
+                // console.log('Significant time rewind detected (likely an ad). Skipping save:', lastSnapshot.t, '->', currentTime);
                 return;
             }
 
@@ -565,9 +571,13 @@ const observer1 = new MutationObserver(async (b) => {
                             }
                             console.log('Ad detected. Reloading...');
                             resetPlaybackRateSettings();
-                            location.reload();
+                            // YouTube 側の副作用等で付与された t パラメータを除去した
+                            // クリーンな URL でリロードする
+                            const reloadUrl = new URL(document.location.href);
+                            reloadUrl.searchParams.delete('t');
+                            location.replace(reloadUrl.toString());
                         }
-                    })
+                    });
                 });
             }, 500);
         } else {

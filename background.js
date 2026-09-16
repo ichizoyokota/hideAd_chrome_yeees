@@ -29,43 +29,66 @@ const getCurrentTab = async () => {
     return await chrome.tabs.query(queryOptions);
 }
 
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-    let [tab] = await getCurrentTab()
-    if (tab && tab.url !== undefined && tab.url.startsWith("chrome://") === false) {
-        if (request === 'on') {
-            await chrome.contextMenus.removeAll();
-            await updateContextMenus('on');
-            await chrome.scripting.insertCSS({
-                target: {tabId: tab.id, allFrames: true},
-                files: ['adHide.css'],
-            });
-        } else if (request === 'off') {
-            await chrome.contextMenus.removeAll();
-            await updateContextMenus('off');
-            await chrome.scripting.removeCSS({
-                target: {tabId: tab.id, allFrames: true},
-                files: ['adHide.css'],
-            });
-        } else if (typeof request === 'object' && request.type === 'SET_WINDOW_FULLSCREEN') {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (typeof request === 'object' && request.type === 'EXEC_IN_MAIN_WORLD') {
+        const tabId = sender.tab ? sender.tab.id : null;
+        if (!tabId) { sendResponse({ ok: false }); return; }
+        const action = request.action;
+        chrome.scripting.executeScript({
+            target: { tabId },
+            world: 'MAIN',
+            func: (a) => {
+                if (a === 'setPlaybackRate1') {
+                    var player2 = document.querySelector('#movie_player');
+                    if (player2 && typeof player2.setPlaybackRate === 'function') {
+                        player2.setPlaybackRate(1);
+                    }
+                    var video = document.querySelector('video');
+                    if (video && video.playbackRate !== 1) video.playbackRate = 1;
+                }
+            },
+            args: [action],
+        }).then(() => sendResponse({ ok: true }))
+          .catch(e => { console.error('EXEC_IN_MAIN_WORLD failed:', e); sendResponse({ ok: false }); });
+        return true;
+    }
+
+    if (typeof request === 'object' && request.type === 'SET_WINDOW_FULLSCREEN') {
+        const windowId = sender.tab ? sender.tab.windowId : null;
+        if (!windowId) return;
+        chrome.windows.update(windowId, { state: request.fullscreen ? 'fullscreen' : 'normal' })
+            .then(() => console.log('Window fullscreen state updated to:', request.fullscreen))
+            .catch(e => console.error('Failed to update window state:', e));
+        return;
+    }
+
+    if (typeof request === 'object' && request.type === 'GET_WINDOW_STATE') {
+        const getWindowId = async () => {
+            if (sender.tab) return sender.tab.windowId;
+            return (await chrome.windows.getCurrent()).id;
+        };
+        getWindowId().then(async (windowId) => {
             try {
-                const windowId = sender.tab ? sender.tab.windowId : (await chrome.windows.getCurrent()).id;
-                await chrome.windows.update(windowId, { state: request.fullscreen ? 'fullscreen' : 'normal' });
-                console.log('Window fullscreen state updated to:', request.fullscreen);
-            } catch (e) {
-                console.error('Failed to update window state:', e);
-            }
-        } else if (typeof request === 'object' && request.type === 'GET_WINDOW_STATE') {
-            try {
-                const windowId = sender.tab ? sender.tab.windowId : (await chrome.windows.getCurrent()).id;
-                const window = await chrome.windows.get(windowId);
-                sendResponse({ state: window.state });
+                const win = await chrome.windows.get(windowId);
+                sendResponse({ state: win.state });
             } catch (e) {
                 console.error('Failed to get window state:', e);
                 sendResponse({ state: 'normal' });
             }
-            return true; // Keep message channel open for async response
-        }
+        });
+        return true;
     }
+
+    getCurrentTab().then(([tab]) => {
+        if (!tab || !tab.url || tab.url.startsWith("chrome://")) return;
+        if (request === 'on') {
+            chrome.contextMenus.removeAll().then(() => updateContextMenus('on'));
+            chrome.scripting.insertCSS({ target: { tabId: tab.id, allFrames: true }, files: ['adHide.css'] });
+        } else if (request === 'off') {
+            chrome.contextMenus.removeAll().then(() => updateContextMenus('off'));
+            chrome.scripting.removeCSS({ target: { tabId: tab.id, allFrames: true }, files: ['adHide.css'] });
+        }
+    });
 });
 
 
