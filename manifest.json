@@ -14,7 +14,9 @@
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
-    "https://*.youtube.com/*"
+    "https://*.youtube.com/*",
+    "https://www.nikkansports.com/*",
+    "https://*.nikkansports.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -29,6 +31,17 @@
         "youtube.js"
       ],
       "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://www.nikkansports.com/*",
+        "https://*.nikkansports.com/*"
+      ],
+      "js": [
+        "adHideRemove.js"
+      ],
+      "run_at": "document_start",
       "all_frames": true
     }
   ],

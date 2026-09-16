@@ -84,6 +84,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request === 'on') {
             chrome.contextMenus.removeAll().then(() => updateContextMenus('on'));
             chrome.scripting.insertCSS({ target: { tabId: tab.id, allFrames: true }, files: ['adHide.css'] });
+            chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['adHideRemove.js'] });
         } else if (request === 'off') {
             chrome.contextMenus.removeAll().then(() => updateContextMenus('off'));
             chrome.scripting.removeCSS({ target: { tabId: tab.id, allFrames: true }, files: ['adHide.css'] });
@@ -108,6 +109,10 @@ const css_switch = async (tab) => {
         await chrome.scripting.insertCSS({
             target: {tabId: tab.id, allFrames: true},
             files: ['adHide.css'],
+        });
+        await chrome.scripting.executeScript({
+            target: {tabId: tab.id, allFrames: true},
+            files: ['adHideRemove.js'],
         });
     } else {
         ytp_do_skip_css_st.css_off = 'off';
@@ -176,6 +181,10 @@ chrome.runtime.onInstalled.addListener(async () => {
             target: {tabId: tab.id, allFrames: true},
             files: ['adHide.css'],
         });
+        await chrome.scripting.executeScript({
+            target: {tabId: tab.id, allFrames: true},
+            files: ['adHideRemove.js'],
+        });
     }
 });
 
@@ -195,6 +204,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
             await chrome.scripting.insertCSS({
                 target: {tabId: tab.id, allFrames: true},
                 files: ['adHide.css'],
+            });
+            await chrome.scripting.executeScript({
+                target: {tabId: tab.id, allFrames: true},
+                files: ['adHideRemove.js'],
             });
         }
     }
