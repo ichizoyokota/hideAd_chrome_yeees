@@ -1,6 +1,5 @@
 let time_slider = 0;
 let time_duration = 0;
-const back_url = 'https://youtu.be/';
 let ytp_do_skip = {
     'video_id': '',
     'time_slider': 0,
@@ -11,6 +10,8 @@ let ytp_do_skip_st = {};
 let tmp = {};
 let params_obj = {};
 let isReloading = false; // リロード中フラグ
+let adReloadBlocked = false; // リロード上限到達で、現在の広告はリロードせずに待つ
+let mutedByExtension = false; // 広告中に拡張機能が消音したか
 
 // 広告が表示されているか判定する関数
 const isAdShowing = () => {
@@ -44,8 +45,56 @@ const isAdShowing = () => {
 };
 
 // 無限ループ防止のためのリロード可否判定
-const canReload = (videoId, time) => {
+// 同じ動画で RELOAD_WINDOW_MS 以内に RELOAD_MAX 回リロードしていたら以降は行わない
+const RELOAD_WINDOW_MS = 60000;
+const RELOAD_MAX = 3;
+const canReload = (videoId) => {
+    try {
+        const now = Date.now();
+        const log = JSON.parse(sessionStorage.getItem('ytp_reload_log') || '[]')
+            .filter((r) => now - r.ts < RELOAD_WINDOW_MS);
+        if (log.filter((r) => r.v === videoId).length >= RELOAD_MAX) {
+            sessionStorage.setItem('ytp_reload_log', JSON.stringify(log));
+            console.warn('Reload limit reached for', videoId, '. Skipping reload.');
+            return false;
+        }
+        log.push({ v: videoId, ts: now });
+        sessionStorage.setItem('ytp_reload_log', JSON.stringify(log));
+    } catch (e) {
+        console.warn('Failed to check reload log:', e);
+    }
     return true;
+};
+
+// background が応答しない場合でもリロード処理が止まらないようにタイムアウトを設ける
+const withTimeout = (promise, ms) => Promise.race([promise, new Promise((r) => setTimeout(r, ms))]);
+
+// 再生リスト等のコンテキストを維持したまま、指定位置から再生する URL を組み立てる
+const buildWatchUrl = (videoId, seconds) => {
+    const current = new URL(document.location.href).searchParams;
+    const url = new URL(document.location.origin + '/watch');
+    url.searchParams.set('v', videoId);
+    ['list', 'index'].forEach((key) => {
+        const value = current.get(key);
+        if (value) url.searchParams.set(key, value);
+    });
+    if (seconds > 0) url.searchParams.set('t', seconds + 's');
+    return url.toString();
+};
+
+// リロードできない広告の間は消音し、広告が終わったら元に戻す
+const muteForAd = () => {
+    const video = document.querySelector('video');
+    if (video && !video.muted) {
+        video.muted = true;
+        mutedByExtension = true;
+    }
+};
+const unmuteAfterAd = () => {
+    if (!mutedByExtension) return;
+    const video = document.querySelector('video');
+    if (video) video.muted = false;
+    mutedByExtension = false;
 };
 
 // 広告回避のリロード時は YouTube 側が保存している再生速度設定をリセットする
@@ -67,8 +116,6 @@ const resetPlaybackRateSettings = () => {
             localStorage.setItem('yt-player-playback-rate', resetValue);
         }
         // リロード後のページでプレーヤー API による速度強制リセットを行うためフラグを立てる。
-        // youtu.be へのリダイレクト経由で youtube.com に戻るため sessionStorage はオリジンをまたいで
-        // 消滅する。localStorage を使うことで youtube.com に戻った後もフラグを参照できる。
         localStorage.setItem('ytp_reset_playback_rate', '1');
     } catch (e) {
         console.warn('Failed to reset playback rate settings before ad reload:', e);
@@ -444,12 +491,7 @@ const checkEndRestoration = () => {
             const video = document.querySelector('video');
             if (video && video.currentTime < 5 && snapshot.t > (snapshot.d - 15)) {
                 if (isReloading) return;
-                
-                // 無限ループチェック
-                if (!canReload(vId, snapshot.t)) {
-                    return;
-                }
-                
+
                 // すでにこの動画で復元を実行したかチェック
                 const restoredVId = sessionStorage.getItem('ytp_last_end_restored_v');
                 if (restoredVId === vId) {
@@ -457,14 +499,19 @@ const checkEndRestoration = () => {
                     return;
                 }
 
+                // 無限ループチェック
+                if (!canReload(vId)) {
+                    return;
+                }
+
                 isReloading = true;
                 console.log('Restoring from end-of-video reload');
                 resetPlaybackRateSettings();
                 // リロード前にフルスクリーン状態を保存
-                updateFullscreenStorage().then(() => {
+                withTimeout(updateFullscreenStorage(), 1000).then(() => {
                     console.log('Saved fullscreen state before end-of-video reload. Reloading now.');
                     sessionStorage.setItem('ytp_last_end_restored_v', vId);
-                    location.replace(back_url + vId + '?t=' + (snapshot.d - 2) + 's');
+                    location.replace(buildWatchUrl(vId, snapshot.d - 2));
                 });
             }
         }
@@ -473,6 +520,8 @@ const checkEndRestoration = () => {
 
 // 初回実行
 setTimeout(checkEndRestoration, 2000);
+// YouTube は SPA のため、ページ遷移（次の動画への切り替え）ごとにも実行する
+document.addEventListener('yt-navigate-finish', () => setTimeout(checkEndRestoration, 2000));
 
 
 const worker_cache_clear = async () => {
@@ -492,8 +541,9 @@ const worker_cache_clear = async () => {
     });
 }
 
-const observer1 = new MutationObserver(async (b) => {
+const onDomChange = () => {
     if (window.self !== window.top) return;
+    attachPlayerClassObserver();
     params_obj = new URL(document.location).searchParams;
     ytp_do_skip_st = JSON.parse(localStorage.getItem('ytp_do_skip')) || ytp_do_skip;
     
@@ -511,6 +561,11 @@ const observer1 = new MutationObserver(async (b) => {
         }
 
         if (adShowing) {
+            // リロード上限に達している場合は、広告が終わるまで消音して待つ
+            if (adReloadBlocked) {
+                muteForAd();
+                return;
+            }
             if (isReloading) return; // すでにリロード中の場合は何もしない
             isReloading = true;
 
@@ -522,10 +577,18 @@ const observer1 = new MutationObserver(async (b) => {
                     return;
                 }
 
+                // 無限ループチェック
+                if (!canReload(params_obj.get("v"))) {
+                    isReloading = false;
+                    adReloadBlocked = true;
+                    muteForAd();
+                    return;
+                }
+
                 console.log('Ad still showing after 0.5s. Proceeding with reload.');
 
                 // リロード前にフルスクリーン状態を保存
-                updateFullscreenStorage().then(async () => {
+                withTimeout(updateFullscreenStorage(), 1000).then(async () => {
                     console.log('Saved fullscreen state before ad-reload. Proceeding with cache clear and reload.');
 
                     await worker_cache_clear().then(() => {
@@ -548,27 +611,17 @@ const observer1 = new MutationObserver(async (b) => {
                             // 異常に小さいタイムコードへの巻き戻りを警戒するロジックも検討可能だが、
                             // まずは snapshot が確実に本編のものであることを優先する
                             if (snapshot.t >= snapshot.d - 1) {
-                                 targetUrl = back_url + snapshot.v + '?t=' + (snapshot.d - 2) + 's';
+                                 targetUrl = buildWatchUrl(snapshot.v, snapshot.d - 2);
                             } else {
-                                 targetUrl = back_url + snapshot.v + '?t=' + snapshot.t + 's';
+                                 targetUrl = buildWatchUrl(snapshot.v, snapshot.t);
                             }
                         }
 
                         if (targetUrl) {
-                            // 無限ループチェック
-                            if (!canReload(params_obj.get("v"), snapshot.t)) {
-                                isReloading = false;
-                                return;
-                            }
                             console.log('Ad detected. Redirecting to: ' + targetUrl);
                             resetPlaybackRateSettings();
                             location.replace(targetUrl);
                         } else {
-                            // 無限ループチェック（snapshotがない場合はt=0相当とする）
-                            if (!canReload(params_obj.get("v"), 0)) {
-                                isReloading = false;
-                                return;
-                            }
                             console.log('Ad detected. Reloading...');
                             resetPlaybackRateSettings();
                             // YouTube 側の副作用等で付与された t パラメータを除去した
@@ -581,6 +634,11 @@ const observer1 = new MutationObserver(async (b) => {
                 });
             }, 500);
         } else {
+            if (adReloadBlocked) {
+                adReloadBlocked = false;
+                unmuteAfterAd();
+            }
+
             // 通常再生時の情報更新
             let tmp_duration = '';
             const durationElem = document.querySelectorAll('.ytp-time-duration')[0];
@@ -619,11 +677,24 @@ const observer1 = new MutationObserver(async (b) => {
         tmp = {...ytp_do_skip_st, 'video_id': '', 'time_slider': 0, 'time_duration': 0};
         localStorage.setItem('ytp_do_skip', JSON.stringify(tmp));
     }
-})
+};
 
+// #movie_player の class（ad-showing / ad-interrupting）の変化を直接監視する。
+// body 全体で class を監視すると YouTube では発火回数が膨大になるため、プレーヤーに限定する。
+const playerClassObserver = new MutationObserver(onDomChange);
+let observedPlayer = null;
+function attachPlayerClassObserver() {
+    const player = document.getElementById('movie_player');
+    if (!player || player === observedPlayer) return;
+    playerClassObserver.disconnect();
+    playerClassObserver.observe(player, { attributes: true, attributeFilter: ['class'] });
+    observedPlayer = player;
+}
+
+const observer1 = new MutationObserver(onDomChange);
 observer1.observe(document.getElementsByTagName('body')[0], {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['style', 'className']
+    attributeFilter: ['style']
 });

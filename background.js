@@ -24,6 +24,39 @@ const updateContextMenus = async (st) => {
     }
 };
 
+// 静止広告非表示 CSS の対象ドメイン（manifest の host_permissions と揃える）
+const AD_HIDE_DOMAINS = ['youtube.com', 'nikkansports.com'];
+const isAdHideTarget = (url) => {
+    try {
+        const host = new URL(url).hostname;
+        return AD_HIDE_DOMAINS.some((d) => host === d || host.endsWith('.' + d));
+    } catch (e) {
+        return false;
+    }
+};
+
+// CSS を適用する。SPA 遷移などで同じタブに複数回呼ばれても重複しないよう、先に一度外してから挿入する
+const applyAdHideCss = async (tab) => {
+    if (!tab || !tab.url || !isAdHideTarget(tab.url)) return;
+    const target = {tabId: tab.id, allFrames: true};
+    try {
+        await chrome.scripting.removeCSS({target, files: ['adHide.css']});
+        await chrome.scripting.insertCSS({target, files: ['adHide.css']});
+        await chrome.scripting.executeScript({target, files: ['adHideRemove.js']});
+    } catch (e) {
+        console.error('Failed to apply ad hide CSS:', e);
+    }
+};
+
+const removeAdHideCss = async (tab) => {
+    if (!tab || !tab.url || !isAdHideTarget(tab.url)) return;
+    try {
+        await chrome.scripting.removeCSS({target: {tabId: tab.id, allFrames: true}, files: ['adHide.css']});
+    } catch (e) {
+        console.error('Failed to remove ad hide CSS:', e);
+    }
+};
+
 const getCurrentTab = async () => {
     let queryOptions = {active: true, lastFocusedWindow: true};
     return await chrome.tabs.query(queryOptions);
@@ -83,11 +116,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!tab || !tab.url || tab.url.startsWith("chrome://")) return;
         if (request === 'on') {
             chrome.contextMenus.removeAll().then(() => updateContextMenus('on'));
-            chrome.scripting.insertCSS({ target: { tabId: tab.id, allFrames: true }, files: ['adHide.css'] });
-            chrome.scripting.executeScript({ target: { tabId: tab.id, allFrames: true }, files: ['adHideRemove.js'] });
+            applyAdHideCss(tab);
         } else if (request === 'off') {
             chrome.contextMenus.removeAll().then(() => updateContextMenus('off'));
-            chrome.scripting.removeCSS({ target: { tabId: tab.id, allFrames: true }, files: ['adHide.css'] });
+            removeAdHideCss(tab);
         }
     });
 });
@@ -106,20 +138,10 @@ const css_switch = async (tab) => {
     // 状態を切り替える
     if (ytp_do_skip_css_st.css_off === 'off') {
         ytp_do_skip_css_st.css_off = 'on';
-        await chrome.scripting.insertCSS({
-            target: {tabId: tab.id, allFrames: true},
-            files: ['adHide.css'],
-        });
-        await chrome.scripting.executeScript({
-            target: {tabId: tab.id, allFrames: true},
-            files: ['adHideRemove.js'],
-        });
+        await applyAdHideCss(tab);
     } else {
         ytp_do_skip_css_st.css_off = 'off';
-        await chrome.scripting.removeCSS({
-            target: {tabId: tab.id, allFrames: true},
-            files: ['adHide.css'],
-        });
+        await removeAdHideCss(tab);
     }
 
     // 変更後の値を保存
@@ -176,39 +198,24 @@ chrome.runtime.onInstalled.addListener(async () => {
 
     // 現在のタブにCSSを適用
     let [tab] = await chrome.tabs.query({active: true, currentWindow: true});
-    if (ytp_do_skip_css_st.css_off === 'on' && tab && tab.url && !tab.url.startsWith("chrome://")) {
-        await chrome.scripting.insertCSS({
-            target: {tabId: tab.id, allFrames: true},
-            files: ['adHide.css'],
-        });
-        await chrome.scripting.executeScript({
-            target: {tabId: tab.id, allFrames: true},
-            files: ['adHideRemove.js'],
-        });
+    if (ytp_do_skip_css_st.css_off === 'on') {
+        await applyAdHideCss(tab);
     }
 });
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-    let [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+// 読み込みが完了した「そのタブ」に適用する（アクティブタブではない）
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.status !== 'complete' || !tab.url || !isAdHideTarget(tab.url)) return;
 
-    if (changeInfo.status === 'complete' && tab && tab.url && tab.url.includes('youtube.com')) {
-        let ytp_do_skip_css_st = await getStorageData('ytp_do_skip_css');
-        if (!ytp_do_skip_css_st) {
-            ytp_do_skip_css_st = {
-                'css_off': 'on' // デフォルトでCSSを有効にする
-            };
-            await setStorageData('ytp_do_skip_css', ytp_do_skip_css_st);
-        }
+    let ytp_do_skip_css_st = await getStorageData('ytp_do_skip_css');
+    if (!ytp_do_skip_css_st) {
+        ytp_do_skip_css_st = {
+            'css_off': 'on' // デフォルトでCSSを有効にする
+        };
+        await setStorageData('ytp_do_skip_css', ytp_do_skip_css_st);
+    }
 
-        if (ytp_do_skip_css_st.css_off === 'on' && !tab.url.startsWith("chrome://")) {
-            await chrome.scripting.insertCSS({
-                target: {tabId: tab.id, allFrames: true},
-                files: ['adHide.css'],
-            });
-            await chrome.scripting.executeScript({
-                target: {tabId: tab.id, allFrames: true},
-                files: ['adHideRemove.js'],
-            });
-        }
+    if (ytp_do_skip_css_st.css_off === 'on') {
+        await applyAdHideCss(tab);
     }
 });
