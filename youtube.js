@@ -10,8 +10,6 @@ let ytp_do_skip_st = {};
 let tmp = {};
 let params_obj = {};
 let isReloading = false; // リロード中フラグ
-let adReloadBlocked = false; // リロード上限到達で、現在の広告はリロードせずに待つ
-let mutedByExtension = false; // 広告中に拡張機能が消音したか
 
 // 広告が表示されているか判定する関数
 const isAdShowing = () => {
@@ -80,21 +78,6 @@ const buildWatchUrl = (videoId, seconds) => {
     });
     if (seconds > 0) url.searchParams.set('t', seconds + 's');
     return url.toString();
-};
-
-// リロードできない広告の間は消音し、広告が終わったら元に戻す
-const muteForAd = () => {
-    const video = document.querySelector('video');
-    if (video && !video.muted) {
-        video.muted = true;
-        mutedByExtension = true;
-    }
-};
-const unmuteAfterAd = () => {
-    if (!mutedByExtension) return;
-    const video = document.querySelector('video');
-    if (video) video.muted = false;
-    mutedByExtension = false;
 };
 
 // 広告回避のリロード時は YouTube 側が保存している再生速度設定をリセットする
@@ -561,11 +544,6 @@ const onDomChange = () => {
         }
 
         if (adShowing) {
-            // リロード上限に達している場合は、広告が終わるまで消音して待つ
-            if (adReloadBlocked) {
-                muteForAd();
-                return;
-            }
             if (isReloading) return; // すでにリロード中の場合は何もしない
             isReloading = true;
 
@@ -574,14 +552,6 @@ const onDomChange = () => {
                 // 0.5秒後もまだ広告が表示されているか再確認
                 if (!isAdShowing()) {
                     isReloading = false;
-                    return;
-                }
-
-                // 無限ループチェック
-                if (!canReload(params_obj.get("v"))) {
-                    isReloading = false;
-                    adReloadBlocked = true;
-                    muteForAd();
                     return;
                 }
 
@@ -634,11 +604,6 @@ const onDomChange = () => {
                 });
             }, 500);
         } else {
-            if (adReloadBlocked) {
-                adReloadBlocked = false;
-                unmuteAfterAd();
-            }
-
             // 通常再生時の情報更新
             let tmp_duration = '';
             const durationElem = document.querySelectorAll('.ytp-time-duration')[0];
