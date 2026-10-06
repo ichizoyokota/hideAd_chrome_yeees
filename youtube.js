@@ -10,6 +10,20 @@ let ytp_do_skip_st = {};
 let tmp = {};
 let params_obj = {};
 let isReloading = false; // リロード中フラグ
+let reloadStartedAt = 0; // リロード開始時刻（固着時の解除用）
+
+// 広告リロードの連続ループ防止
+// 広告の掲出回数には上限を設けず、「リロード後に本編が進まないまま広告に戻される」連続回数だけを数える。
+// 本編が再生できた時点で連続回数はリセットされる。
+const AD_RELOAD_STREAK_MAX = 3;
+const AD_RELOAD_WATCHDOG_MS = 10000;
+const getAdStreak = () => {
+    try {
+        return JSON.parse(sessionStorage.getItem('ytp_ad_streak'));
+    } catch (e) {
+        return null;
+    }
+};
 
 // 広告が表示されているか判定する関数
 const isAdShowing = () => {
@@ -544,8 +558,14 @@ const onDomChange = () => {
         }
 
         if (adShowing) {
+            // リロード処理が途中で止まった場合に備え、一定時間を過ぎたら固着を解除する
+            if (isReloading && Date.now() - reloadStartedAt > AD_RELOAD_WATCHDOG_MS) {
+                console.warn('Ad reload seems stuck. Resetting reload flag.');
+                isReloading = false;
+            }
             if (isReloading) return; // すでにリロード中の場合は何もしない
             isReloading = true;
+            reloadStartedAt = Date.now();
 
             // 0.5秒間広告を再生させてからリロード処理に移行する
             setTimeout(async () => {
@@ -554,6 +574,29 @@ const onDomChange = () => {
                     isReloading = false;
                     return;
                 }
+
+                // 連続ループ判定：同じ動画で本編が進まないままリロードが続いている場合は、
+                // このまま広告を再生させてリロードを打ち切る（次に本編が進めばリセットされる）
+                const currentVIdForStreak = params_obj.get("v");
+                const streak = getAdStreak();
+                const streakCount = streak && streak.v === currentVIdForStreak ? streak.n : 0;
+                if (streakCount >= AD_RELOAD_STREAK_MAX) {
+                    console.warn('Ad reload streak reached', streakCount, '. Letting the ad play.');
+                    isReloading = false;
+                    return;
+                }
+                const resumeSnapshot = [...(() => {
+                    try {
+                        return JSON.parse(sessionStorage.getItem('ytp_history_queue') || '[]');
+                    } catch (e) {
+                        return [];
+                    }
+                })()].reverse().find(s => s.v === currentVIdForStreak && s.t > 0);
+                sessionStorage.setItem('ytp_ad_streak', JSON.stringify({
+                    v: currentVIdForStreak,
+                    n: streakCount + 1,
+                    t: resumeSnapshot ? resumeSnapshot.t : 0
+                }));
 
                 console.log('Ad still showing after 0.5s. Proceeding with reload.');
 
@@ -605,6 +648,13 @@ const onDomChange = () => {
             }, 500);
         } else {
             // 通常再生時の情報更新
+            // 本編がリロード位置から進んでいれば、広告の連続リロード記録をリセットする
+            const streakVideo = document.querySelector('video');
+            const streakRecord = getAdStreak();
+            if (streakRecord && streakVideo && streakVideo.currentTime > streakRecord.t + 5) {
+                sessionStorage.removeItem('ytp_ad_streak');
+            }
+
             let tmp_duration = '';
             const durationElem = document.querySelectorAll('.ytp-time-duration')[0];
             if (durationElem) {
